@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Car Flipper</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#e94560">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    :root {
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --card2: #16213e;
+      --accent: #e94560;
+      --accent2: #0f3460;
+      --green: #00d4aa;
+      --red: #e94560;
+      --yellow: #f5a623;
+      --blue: #4a9eff;
+      --text: #eaeaea;
+      --muted: #888;
+      --border: #2a2a4a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; min-height: 100vh; }
+    
+    /* Auth */
+    #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .auth-box { background: var(--card); border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; border: 1px solid var(--border); }
+    .auth-logo { text-align: center; margin-bottom: 32px; }
+    .auth-logo .car-icon { font-size: 48px; margin-bottom: 8px; }
+    .auth-logo h1 { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .auth-logo p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+    .auth-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 28px; }
+    .auth-tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); transition: all 0.2s; border: none; background: transparent; }
+    .auth-tab.active { background: var(--card2); color: var(--text); }
+    .form-group { margin-bottom: 16px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+    input, select, textarea { width: 100%; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 14px; transition: border 0.2s; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--card); }
+    .btn { padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-primary { background: var(--accent); color: white; width: 100%; }
+    .btn-primary:hover { background: #c73652; }
+    .btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+    .btn-sm { padding: 7px 14px; font-size: 13px; }
+    .btn-danger { background: #2a0a0f; color: var(--red); border: 1px solid var(--red); }
+    .btn-green { background: #003d30; color: var(--green); border: 1px solid var(--green); }
+    .error-msg { color: var(--red); font-size: 13px; margin-top: 12px; text-align: center; }
+
+    /* App layout */
+    #app-screen { display: none; min-height: 100vh; }
+    .topbar { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .topbar-logo { font-size: 18px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+    .topbar-nav { display: flex; gap: 4px; }
+    .nav-btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: all 0.2s; }
+    .nav-btn.active, .nav-btn:hover { background: var(--card2); color: var(--text); }
+    .topbar-user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; }
+    
+    .page { display: none; padding: 24px 20px; max-width: 1200px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    /* Dashboard */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: var(--card); border-radius: 14px; padding: 20px; border: 1px solid var(--border); }
+    .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.blue { color: var(--blue); }
+    .stat-value.yellow { color: var(--yellow); }
+
+    /* Inventory */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .page-title { font-size: 22px; font-weight: 700; }
+    .vehicle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .vehicle-card { background: var(--card); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: all 0.2s; }
+    .vehicle-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .vehicle-thumb { width: 100%; height: 180px; object-fit: cover; background: var(--card2); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 40px; }
+    .vehicle-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .vehicle-info { padding: 16px; }
+    .vehicle-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .vehicle-sub { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .vehicle-stats { display: flex; justify-content: space-between; align-items: center; }
+    .vehicle-price { font-size: 15px; font-weight: 600; }
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .status-active { background: #0a1628; color: var(--blue); border: 1px solid var(--blue); }
+    .status-listed { background: #2a1a00; color: var(--yellow); border: 1px solid var(--yellow); }
+    .status-sold { background: #003d30; color: var(--green); border: 1px solid var(--green); }
+    .profit-positive { color: var(--green); font-size: 13px; }
+    .profit-negative { color: var(--red); font-size: 13px; }
+    .empty-state { text-align: center; padding: 80px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 64px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); }
+    .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--card); z-index: 1; }
+    .modal-header h2 { font-size: 18px; font-weight: 600; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px; line-height: 1; }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* Vehicle detail */
+    .detail-header { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; }
+    .detail-title-block { flex: 1; min-width: 200px; }
+    .detail-title { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+    .detail-sub { font-size: 15px; color: var(--muted); margin-bottom: 12px; }
+    .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .detail-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 24px; overflow-x: auto; }
+    .detail-tab { padding: 10px 18px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+    .detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .detail-panel { display: none; }
+    .detail-panel.active { display: block; }
+
+    /* Summary cards */
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .summary-card { background: var(--card2); border-radius: 12px; padding: 16px; border: 1px solid var(--border); }
+    .summary-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .summary-value { font-size: 20px; font-weight: 700; }
+
+    /* Checklist */
+    .checklist-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .checklist-item { display: flex; align-items: center; gap: 12px; background: var(--card2); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); }
+    .checklist-item.completed { opacity: 0.6; }
+    .checklist-item.completed .item-desc { text-decoration: line-through; }
+    .check-box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; background: var(--bg); }
+    .check-box.checked { background: var(--green); border-color: var(--green); }
+    .item-desc { flex: 1; font-size: 14px; }
+    .item-cat { font-size: 11px; padding: 3px 8px; border-radius: 20px; background: var(--border); color: var(--muted); margin-left: auto; }
+    .item-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 2px 6px; opacity: 0; transition: opacity 0.2s; }
+    .checklist-item:hover .item-delete { opacity: 1; }
+    .add-item-row { display: flex; gap: 8px; }
+    .add-item-row input, .add-item-row select { flex: 1; }
+
+    /* Expenses */
+    .expenses-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .expense-item { display: flex; align-items: center; gap: 12px; background: var(--card2); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); }
+    .expense-amount { font-size: 16px; font-weight: 600; color: var(--red); min-width: 80px; text-align: right; }
+    .expense-desc { flex: 1; font-size: 14px; }
+    .expense-meta { font-size: 12px; color: var(--muted); }
+    .expense-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 2px 6px; opacity: 0; transition: opacity 0.2s; }
+    .expense-item:hover .expense-delete { opacity: 1; }
+    .expense-total { font-size: 16px; font-weight: 600; text-align: right; padding: 8px 0; color: var(--red); border-top: 1px solid var(--border); margin-top: 8px; }
+
+    /* Photos */
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .photo-item { position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 4/3; background: var(--card2); cursor: pointer; }
+    .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-delete { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); border: none; color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; display: none; align-items: center; justify-content: center; }
+    .photo-item:hover .photo-delete { display: flex; }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; color: var(--muted); }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); color: var(--accent); }
+
+    /* Team */
+    .team-list { display: flex; flex-direction: column; gap: 10px; }
+    .team-member { display: flex; align-items: center; gap: 12px; background: var(--card2); padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); }
+    .member-info { flex: 1; }
+    .member-name { font-size: 15px; font-weight: 500; }
+    .member-email { font-size: 13px; color: var(--muted); }
+    .role-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: var(--accent2); color: var(--blue); }
+
+    /* Back button */
+    .back-btn { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; cursor: pointer; border: none; background: none; padding: 0; margin-bottom: 16px; }
+    .back-btn:hover { color: var(--text); }
+
+    /* Photo lightbox */
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; align-items: center; justify-content: center; }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 8px; }
+    #lightbox-close { position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
+
+    /* Invite modal info */
+    .invite-token-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-family: monospace; font-size: 13px; word-break: break-all; color: var(--green); margin-top: 12px; }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--card2); color: var(--text); padding: 12px 20px; border-radius: 10px; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; border: 1px solid var(--border); white-space: nowrap; }
+    #toast.show { opacity: 1; }
+
+    @media (max-width: 640px) {
+      #topbar-nav { display: none !important; }
+      #hamburger { display: inline-flex !important; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .vehicle-grid { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+      .detail-header { flex-direction: column; }
+      .user-org-text { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="car-icon">🚗</div>
+      <h1>Car Flipper</h1>
+      <p>Your car flipping command center</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="showAuthTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="showAuthTab('signup')">Create Account</button>
+    </div>
+    <!-- Login -->
+    <div id="login-form">
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••"></div>
+      <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+      <div id="login-error" class="error-msg"></div>
+    </div>
+    <!-- Signup -->
+    <div id="signup-form" style="display:none">
+      <div class="form-group"><label>Dealership / Business Name</label><input type="text" id="su-org" placeholder="e.g. Medina Auto Group"></div>
+      <div class="form-row">
+        <div class="form-group"><label>First Name</label><input type="text" id="su-first" placeholder="Josh"></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="su-last" placeholder="Medina"></div>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="su-email" placeholder="you@example.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="su-pass" placeholder="Min 6 characters"></div>
+      <button class="btn btn-primary" onclick="doSignup()">Create Account</button>
+      <div id="signup-error" class="error-msg"></div>
+    </div>
+    <!-- Accept Invite -->
+    <div id="invite-form" style="display:none">
+      <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">You've been invited! Set your name and password to join.</p>
+      <div class="form-row">
+        <div class="form-group"><label>First Name</label><input type="text" id="inv-first"></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="inv-last"></div>
+      </div>
+      <div class="form-group"><label>Password</label><input type="password" id="inv-pass"></div>
+      <button class="btn btn-primary" onclick="doAcceptInvite()">Join Team</button>
+      <div id="invite-error" class="error-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- App Screen -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-logo">&#128663; Car Flipper</div>
+    <div class="topbar-nav" id="topbar-nav">
+      <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+      <button class="nav-btn" onclick="showPage('inventory')">Inventory</button>
+      <button class="nav-btn" onclick="showPage('team')">Team</button>
+    </div>
+    <div class="topbar-user">
+      <span id="user-org" style="color:var(--muted);font-size:13px"></span>
+      <div class="avatar" id="user-avatar">?</div>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="white-space:nowrap">Logout</button>
+      <button class="btn btn-ghost btn-sm hamburger" id="hamburger" onclick="toggleMobileMenu()" style="display:none;padding:6px 10px;font-size:18px">&#9776;</button>
+    </div>
+  </div>
+  <!-- Mobile nav drawer -->
+  <div id="mobile-nav" style="display:none;background:var(--card);border-bottom:1px solid var(--border);padding:8px 12px;flex-direction:column;gap:4px;">
+    <button class="nav-btn" style="text-align:left" onclick="showPage('dashboard');closeMobileMenu()">Dashboard</button>
+    <button class="nav-btn" style="text-align:left" onclick="showPage('inventory');closeMobileMenu()">Inventory</button>
+    <button class="nav-btn" style="text-align:left" onclick="showPage('team');closeMobileMenu()">Team</button>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="page active" id="page-dashboard">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Active Inventory</div><div class="stat-value blue" id="stat-active">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Invested</div><div class="stat-value yellow" id="stat-invested">—</div></div>
+      <div class="stat-card"><div class="stat-label">Est. Portfolio Value</div><div class="stat-value" id="stat-portfolio">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Profit (Sold)</div><div class="stat-value green" id="stat-profit">—</div></div>
+    </div>
+    <div class="page-header">
+      <div class="page-title">Recent Vehicles</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Vehicle</button>
+    </div>
+    <div class="vehicle-grid" id="dash-vehicles"></div>
+  </div>
+
+  <!-- Inventory -->
+  <div class="page" id="page-inventory">
+    <div class="page-header">
+      <div class="page-title">All Inventory</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Vehicle</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="filterStatus('all')">All</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterStatus('active')">Active</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterStatus('listed')">Listed</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterStatus('sold')">Sold</button>
+    </div>
+    <div class="vehicle-grid" id="inv-vehicles"></div>
+  </div>
+
+  <!-- Vehicle Detail -->
+  <div class="page" id="page-detail">
+    <button class="back-btn" onclick="showPage('inventory')">← Back to Inventory</button>
+    <div class="detail-header">
+      <div class="detail-title-block">
+        <div class="detail-title" id="det-title">—</div>
+        <div class="detail-sub" id="det-sub"></div>
+        <span class="status-badge" id="det-status-badge"></span>
+      </div>
+      <div class="detail-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openEditModal()">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteVehicle()">🗑 Delete</button>
+      </div>
+    </div>
+    <div class="detail-tabs">
+      <button class="detail-tab active" onclick="showDetailTab('overview')">Overview</button>
+      <button class="detail-tab" onclick="showDetailTab('checklist')">Checklist</button>
+      <button class="detail-tab" onclick="showDetailTab('expenses')">Expenses</button>
+      <button class="detail-tab" onclick="showDetailTab('photos')">Photos</button>
+      <button class="detail-tab" onclick="showDetailTab('notes')">Notes</button>
+    </div>
+    <!-- Overview -->
+    <div class="detail-panel active" id="panel-overview">
+      <div class="summary-grid">
+        <div class="summary-card"><div class="summary-label">Purchase Price</div><div class="summary-value" id="ov-buy">—</div></div>
+        <div class="summary-card"><div class="summary-label">Total Expenses</div><div class="summary-value red" id="ov-exp">—</div></div>
+        <div class="summary-card"><div class="summary-label">KBB Value</div><div class="summary-value" id="ov-kbb">—</div></div>
+        <div class="summary-card"><div class="summary-label">Est. Profit</div><div class="summary-value green" id="ov-est">—</div></div>
+        <div class="summary-card"><div class="summary-label">Sell Price</div><div class="summary-value" id="ov-sell">—</div></div>
+        <div class="summary-card"><div class="summary-label">Actual Profit</div><div class="summary-value" id="ov-profit">—</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:14px;color:var(--muted);">
+        <div><div style="margin-bottom:8px"><strong style="color:var(--text)">VIN:</strong> <span id="ov-vin">—</span></div>
+        <div style="margin-bottom:8px"><strong style="color:var(--text)">Color:</strong> <span id="ov-color">—</span></div></div>
+        <div><div style="margin-bottom:8px"><strong style="color:var(--text)">Purchased:</strong> <span id="ov-pdate">—</span></div>
+        <div style="margin-bottom:8px"><strong style="color:var(--text)">Sold:</strong> <span id="ov-sdate">—</span></div></div>
+      </div>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label style="margin:0;color:var(--muted);font-size:13px;font-weight:500">Change Status:</label>
+        <select id="ov-status-select" onchange="changeVehicleStatus(this.value)" style="width:auto;min-width:130px">
+          <option value="active">Active</option>
+          <option value="listed">Listed</option>
+          <option value="sold">Sold</option>
+        </select>
+      </div>
+    </div>
+    <!-- Checklist -->
+    <div class="detail-panel" id="panel-checklist">
+      <div class="checklist-list" id="checklist-list"></div>
+      <div class="add-item-row">
+        <select id="cl-cat"><option value="mechanical">🔧 Mechanical</option><option value="bodywork">🎨 Bodywork</option><option value="other">📋 Other</option></select>
+        <input type="text" id="cl-desc" placeholder="e.g. Replace brake pads" style="flex:2">
+        <button class="btn btn-primary btn-sm" onclick="addChecklistItem()">Add</button>
+      </div>
+    </div>
+    <!-- Expenses -->
+    <div class="detail-panel" id="panel-expenses">
+      <div class="expenses-list" id="expenses-list"></div>
+      <div id="exp-total" class="expense-total"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <select id="exp-cat"><option value="parts">🔩 Parts</option><option value="labor">🔨 Labor</option><option value="fees">📄 Fees</option><option value="other">📦 Other</option></select>
+        <input type="text" id="exp-desc" placeholder="Description" style="flex:2;min-width:100px">
+        <input type="number" id="exp-amount" placeholder="Amount" style="width:100px">
+        <input type="date" id="exp-date" style="width:140px">
+        <button class="btn btn-primary btn-sm" onclick="addExpense()">Add</button>
+      </div>
+    </div>
+    <!-- Photos -->
+    <div class="detail-panel" id="panel-photos">
+      <div class="photo-grid" id="photo-grid"></div>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('photo-input').click()">
+        <div style="font-size:32px;margin-bottom:8px">📸</div>
+        <div>Click to upload photos</div>
+        <div style="font-size:12px;margin-top:4px">JPG, PNG, HEIC up to 20MB each</div>
+      </div>
+      <input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="uploadPhotos(this)">
+    </div>
+    <!-- Notes -->
+    <div class="detail-panel" id="panel-notes">
+      <textarea id="notes-area" rows="10" placeholder="Add notes about this vehicle..." style="width:100%;font-size:14px;line-height:1.6;resize:vertical"></textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveNotes()">Save Notes</button>
+    </div>
+  </div>
+
+  <!-- Team -->
+  <div class="page" id="page-team">
+    <div class="page-header">
+      <div class="page-title">Team</div>
+      <button class="btn btn-primary btn-sm" onclick="openInviteModal()">+ Invite Member</button>
+    </div>
+    <div class="team-list" id="team-list"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Vehicle Modal -->
+<div class="modal-overlay" id="vehicle-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="vehicle-modal-title">Add Vehicle</h2>
+      <button class="modal-close" onclick="closeModal('vehicle-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Year</label><input type="number" id="v-year" placeholder="2020"></div>
+        <div class="form-group"><label>Make</label><input type="text" id="v-make" placeholder="Toyota"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Model</label><input type="text" id="v-model" placeholder="Camry"></div>
+        <div class="form-group"><label>Trim</label><input type="text" id="v-trim" placeholder="SE"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>VIN</label><input type="text" id="v-vin" placeholder="1HGBH41JXMN109186"></div>
+        <div class="form-group"><label>Color</label><input type="text" id="v-color" placeholder="Black"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Purchase Price ($)</label><input type="number" id="v-buy" placeholder="5000"></div>
+        <div class="form-group"><label>Purchase Date</label><input type="date" id="v-pdate"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>KBB Value ($)</label><input type="number" id="v-kbb" placeholder="8500"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="v-status">
+            <option value="active">Active</option>
+            <option value="listed">Listed</option>
+            <option value="sold">Sold</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Sell Price ($)</label><input type="number" id="v-sell" placeholder="Leave blank if not sold"></div>
+        <div class="form-group"><label>Sell Date</label><input type="date" id="v-sdate"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('vehicle-modal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="vehicle-modal-save" onclick="saveVehicle()">Add Vehicle</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invite Modal -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Invite Team Member</h2>
+      <button class="modal-close" onclick="closeModal('invite-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>First Name</label><input type="text" id="invite-first" placeholder="Jane"></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="invite-last" placeholder="Smith"></div>
+      </div>
+      <div class="form-group"><label>Email Address</label><input type="email" id="invite-email" placeholder="teammate@example.com"></div>
+      <div id="invite-result"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('invite-modal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="sendInvite()">Send Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<div id="toast"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
