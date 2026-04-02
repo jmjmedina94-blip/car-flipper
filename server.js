@@ -22,7 +22,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Debug endpoint — check uploads dir + DB
+// Debug endpoint
+app.get('/api/debug/db', async (req, res) => {
+  try {
+    const db = require('./database');
+    const r = await db.query('SELECT COUNT(*) as cnt FROM users');
+    res.json({ mode: db.isPg ? 'postgresql' : 'sqlite', userCount: r.rows[0].cnt, dbUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0,30)+'...' : 'NOT SET' });
+  } catch (e) { res.json({ error: e.message }); }
+});
+
 app.get('/api/debug/uploads', async (req, res) => {
   try {
     const files = [];
