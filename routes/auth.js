@@ -66,19 +66,13 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', authenticate, async (req, res) => {
   try {
-    console.log('ME req.user:', JSON.stringify(req.user));
+    // Look up by email (always in JWT) as the reliable key
     const result = await db.query(
-      'SELECT users.*, orgs.name as org_name FROM users JOIN orgs ON users.org_id = orgs.id WHERE users.id = $1',
-      [req.user.userId]
+      'SELECT users.*, orgs.name as org_name FROM users JOIN orgs ON users.org_id = orgs.id WHERE users.email = $1',
+      [req.user.email]
     );
-    console.log('ME rows:', result.rows.length);
     const user = result.rows[0];
-    if (!user) {
-      // Debug: check if user exists at all
-      const check = await db.query('SELECT id FROM users WHERE id = $1', [req.user.userId]);
-      console.log('Direct user check:', check.rows.length, 'rows for id', req.user.userId);
-      return res.status(404).json({ error: 'User not found', userId: req.user.userId, directCheck: check.rows.length });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ id: user.id, firstName: user.first_name, lastName: user.last_name, email: user.email, role: user.role, orgName: user.org_name });
   } catch (err) {
     console.error('Me error:', err);

@@ -9,10 +9,11 @@ module.exports = function authenticate(req, res, next) {
   const token = header.slice(7);
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    // Support both old (userId/orgId) and new (id/org_id) token formats
+    const userId = payload.userId || payload.id;
+    const orgId = payload.orgId || payload.org_id;
     req.user = {
-      id: payload.id || payload.userId,
-      org_id: payload.org_id || payload.orgId,
+      userId,
+      orgId,
       email: payload.email,
       role: payload.role
     };
