@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, org_id: user.org_id, email: user.email, role: user.role },
+    { userId: user.id, orgId: user.org_id, email: user.email, role: user.role },
     JWT_SECRET,
     { expiresIn: '30d' }
   );
@@ -75,7 +75,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticate, (req, res) => {
   const user = db.prepare(
     'SELECT users.id, users.org_id, users.email, users.first_name, users.last_name, users.role, users.created_at, orgs.name as orgName FROM users JOIN orgs ON users.org_id = orgs.id WHERE users.id = ?'
-  ).get(req.user.id);
+  ).get(req.user.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({
     id: user.id,
@@ -102,7 +102,7 @@ router.post('/invite', authenticate, (req, res) => {
   const inviteToken = uuidv4();
   db.prepare(
     'INSERT INTO users (id, org_id, email, password_hash, first_name, last_name, role, invite_token, invite_accepted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(userId, req.user.org_id, email, '', firstName, lastName, 'member', inviteToken, 0);
+  ).run(userId, req.user.orgId, email, '', firstName, lastName, 'member', inviteToken, 0);
 
   res.json({ message: 'Invite created', inviteToken, email, userId });
 });
