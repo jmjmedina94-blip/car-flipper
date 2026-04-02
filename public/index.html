@@ -374,12 +374,12 @@
     <!-- Photos -->
     <div class="detail-panel" id="panel-photos">
       <div class="photo-grid" id="photo-grid"></div>
-      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('photo-input').click()">
+      <label for="photo-input" class="upload-zone" id="upload-zone" style="display:block;cursor:pointer">
         <div style="font-size:32px;margin-bottom:8px">📸</div>
-        <div>Click to upload photos</div>
+        <div>Tap to upload photos</div>
         <div style="font-size:12px;margin-top:4px">JPG, PNG, HEIC up to 20MB each</div>
-      </div>
-      <input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="uploadPhotos(this)">
+      </label>
+      <input type="file" id="photo-input" accept="image/*" multiple style="display:none;position:absolute;opacity:0" onchange="uploadPhotos(this)">
     </div>
     <!-- Notes -->
     <div class="detail-panel" id="panel-notes">
