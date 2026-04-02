@@ -2,9 +2,15 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'data', 'carflipper.db');
+// If UPLOADS_DIR is set (Railway Volume), store DB there too so it persists
+const uploadsDir = process.env.UPLOADS_DIR;
+const defaultDbPath = uploadsDir
+  ? path.join(uploadsDir, 'db', 'carflipper.db')
+  : path.join(__dirname, 'data', 'carflipper.db');
+const dbPath = process.env.DB_PATH || defaultDbPath;
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+console.log('DB path:', dbPath);
 
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
