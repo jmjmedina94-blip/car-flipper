@@ -7,9 +7,10 @@ const fs = require('fs');
 const db = require('../database');
 
 // Photo upload setup
+const UPLOADS_ROOT = process.env.UPLOADS_DIR || path.resolve(__dirname, '..', 'uploads');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '..', 'uploads', 'vehicles', req.params.id);
+    const dir = path.join(UPLOADS_ROOT, 'vehicles', req.params.id);
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -202,7 +203,7 @@ router.delete('/:id/photos/:photoId', (req, res) => {
     'SELECT p.* FROM photos p JOIN vehicles v ON p.vehicle_id = v.id WHERE p.id = ? AND v.org_id = ?'
   ).get(req.params.photoId, req.user.org_id);
   if (!photo) return res.status(404).json({ error: 'Not found' });
-  const filePath = path.join(__dirname, '..', 'uploads', 'vehicles', req.params.id, photo.filename);
+  const filePath = path.join(UPLOADS_ROOT, 'vehicles', req.params.id, photo.filename);
   try { fs.unlinkSync(filePath); } catch (e) {}
   db.prepare('DELETE FROM photos WHERE id = ?').run(req.params.photoId);
   res.json({ ok: true });

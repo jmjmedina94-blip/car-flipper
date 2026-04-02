@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 // Init DB first
 require('./database');
@@ -8,13 +9,20 @@ require('./database');
 const app = express();
 const PORT = process.env.PORT || 3200;
 
+// Ensure uploads directory exists
+const UPLOADS_DIR = path.resolve(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Debug: log upload dir on startup
+console.log('Uploads dir:', UPLOADS_DIR);
 
 // Auth routes (no middleware)
 app.use('/api/auth', require('./routes/auth'));
