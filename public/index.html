@@ -218,9 +218,11 @@
     </div>
     <!-- Login -->
     <div id="login-form">
-      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"></div>
-      <div class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••"></div>
-      <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+      <form onsubmit="event.preventDefault();doLogin()">
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn btn-primary" type="submit" style="cursor:pointer;touch-action:manipulation">Sign In</button>
+      </form>
       <div id="login-error" class="error-msg"></div>
     </div>
     <!-- Signup -->
@@ -232,7 +234,7 @@
       </div>
       <div class="form-group"><label>Email</label><input type="email" id="su-email" placeholder="you@example.com"></div>
       <div class="form-group"><label>Password</label><input type="password" id="su-pass" placeholder="Min 6 characters"></div>
-      <button class="btn btn-primary" onclick="doSignup()">Create Account</button>
+      <button class="btn btn-primary" onclick="doSignup()" type="button" style="cursor:pointer;touch-action:manipulation">Create Account</button>
       <div id="signup-error" class="error-msg"></div>
     </div>
     <!-- Accept Invite -->
