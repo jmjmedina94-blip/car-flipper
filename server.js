@@ -22,8 +22,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Debug endpoint — check uploads dir
-app.get('/api/debug/uploads', (req, res) => {
+// Debug endpoint — check uploads dir + DB
+app.get('/api/debug/uploads', async (req, res) => {
   try {
     const files = [];
     function walk(dir, base = '') {
