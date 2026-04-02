@@ -426,6 +426,28 @@ function renderPhotos(photos, vehicleId) {
     </div>`).join('');
 }
 
+// Compress image to max 1600px wide, quality 0.85, max ~1.5MB
+function compressImage(file) {
+  return new Promise(resolve => {
+    if (!file.type.startsWith('image/')) { resolve(file); return; }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1600;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      else if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => resolve(file);
+    img.src = url;
+  });
+}
+
 async function uploadPhotos(input) {
   await uploadPhotosFromFiles(input.files);
   input.value = '';
@@ -433,8 +455,12 @@ async function uploadPhotos(input) {
 
 async function uploadPhotosFromFiles(files) {
   if (!files || !files.length) return;
+  showToast('Compressing photos...');
   const form = new FormData();
-  for (const f of files) form.append('photos', f);
+  for (const f of files) {
+    const compressed = await compressImage(f);
+    form.append('photos', compressed);
+  }
   try {
     const res = await fetch(`/api/vehicles/${currentVehicleId}/photos`, {
       method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form
