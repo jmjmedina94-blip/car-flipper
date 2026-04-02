@@ -379,7 +379,7 @@
         <div>Tap to upload photos</div>
         <div style="font-size:12px;margin-top:4px">JPG, PNG, HEIC up to 20MB each</div>
       </label>
-      <input type="file" id="photo-input" accept="image/*" multiple style="display:none;position:absolute;opacity:0" onchange="uploadPhotos(this)">
+      <input type="file" id="photo-input" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;" onchange="uploadPhotos(this)">
     </div>
     <!-- Notes -->
     <div class="detail-panel" id="panel-notes">
