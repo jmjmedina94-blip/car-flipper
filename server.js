@@ -55,6 +55,7 @@ app.use('/api/auth', require('./routes/auth'));
 const auth = require('./middleware/auth');
 app.use('/api/vehicles', auth, require('./routes/vehicles'));
 app.use('/api/team', auth, require('./routes/team'));
+app.use('/api/leads', auth, require('./routes/leads'));
 
 // SPA fallback
 app.get('*', (req, res) => {

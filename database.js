@@ -71,6 +71,51 @@ if (DATABASE_URL) {
       original_name TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS leads (
+      id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL REFERENCES orgs(id),
+      assigned_to TEXT REFERENCES users(id),
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      source TEXT DEFAULT 'other',
+      status TEXT DEFAULT 'new',
+      vehicle_year INTEGER,
+      vehicle_make TEXT,
+      vehicle_model TEXT,
+      vehicle_trim TEXT,
+      vehicle_vin TEXT,
+      vehicle_stock_number TEXT,
+      lead_date TEXT,
+      notes_summary TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS lead_notes (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id),
+      content TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS lead_attachments (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id),
+      filename TEXT NOT NULL,
+      original_name TEXT,
+      mime_type TEXT,
+      file_size INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS lead_activities (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id),
+      activity_type TEXT NOT NULL,
+      description TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `).then(() => console.log('PG schema ready')).catch(e => console.error('PG schema error:', e.message));
 
   // Wrap pool to look like better-sqlite3 interface
@@ -160,6 +205,51 @@ if (DATABASE_URL) {
       vehicle_id TEXT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
       filename TEXT NOT NULL,
       original_name TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS leads (
+      id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL REFERENCES orgs(id),
+      assigned_to TEXT REFERENCES users(id),
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      source TEXT DEFAULT 'other',
+      status TEXT DEFAULT 'new',
+      vehicle_year INTEGER,
+      vehicle_make TEXT,
+      vehicle_model TEXT,
+      vehicle_trim TEXT,
+      vehicle_vin TEXT,
+      vehicle_stock_number TEXT,
+      lead_date TEXT,
+      notes_summary TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS lead_notes (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id),
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS lead_attachments (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id),
+      filename TEXT NOT NULL,
+      original_name TEXT,
+      mime_type TEXT,
+      file_size INTEGER,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS lead_activities (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id),
+      activity_type TEXT NOT NULL,
+      description TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);

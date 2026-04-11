@@ -164,6 +164,7 @@ function showPage(name) {
   if (name === 'inventory') renderInventory();
   if (name === 'dashboard') renderDashboard();
   if (name === 'team') loadTeam();
+  if (name === 'leads') { loadLeads().then(() => switchLeadsView(leadsView)); }
 }
 
 // ---- Vehicles ----
@@ -682,3 +683,371 @@ document.addEventListener('keydown', e => {
     closeLightbox();
   }
 });
+
+// ============================================================
+// ---- LEADS MODULE ----
+// ============================================================
+
+let leadsData = [];
+let currentLeadId = null;
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-indexed
+let leadsView = 'calendar'; // 'calendar' | 'list'
+let selectedCalDay = null;
+
+const STATUS_ICONS = { call:'📞', text:'💬', email:'📧', note:'📝', status_change:'🔄', assignment:'👤' };
+
+// ---- Load & Render Leads ----
+
+async function loadLeads() {
+  try {
+    const status = document.getElementById('leads-filter-status')?.value || '';
+    const search = document.getElementById('leads-search')?.value || '';
+    let url = '/api/leads?';
+    if (status) url += `status=${encodeURIComponent(status)}&`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    const result = await apiFetch(url);
+    leadsData = Array.isArray(result) ? result : [];
+    if (!Array.isArray(leadsData)) leadsData = [];
+  } catch (e) { leadsData = []; }
+}
+
+async function refreshLeads() {
+  await loadLeads();
+  if (leadsView === 'calendar') renderCalendar();
+  else renderLeadsList();
+}
+
+function switchLeadsView(view) {
+  leadsView = view;
+  document.getElementById('leads-calendar-view').style.display = view === 'calendar' ? '' : 'none';
+  document.getElementById('leads-list-view').style.display = view === 'list' ? '' : 'none';
+  document.getElementById('leads-cal-btn').className = view === 'calendar' ? 'btn btn-secondary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('leads-list-btn').className = view === 'list' ? 'btn btn-secondary btn-sm' : 'btn btn-ghost btn-sm';
+  if (view === 'calendar') renderCalendar();
+  else renderLeadsList();
+}
+
+// ---- Calendar ----
+
+function calNav(dir) { calMonth += dir; if (calMonth < 0) { calMonth = 11; calYear--; } if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+function calToday() { calYear = new Date().getFullYear(); calMonth = new Date().getMonth(); selectedCalDay = null; renderCalendar(); }
+
+function renderCalendar() {
+  const label = document.getElementById('cal-month-label');
+  const grid = document.getElementById('cal-grid');
+  const dayLeads = document.getElementById('cal-day-leads');
+  if (!label || !grid) return;
+
+  label.textContent = new Date(calYear, calMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html = DAYS.map(d => `<div class="cal-header">${d}</div>`).join('');
+
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+
+  // Build date → leads map
+  const byDate = {};
+  for (const lead of leadsData) {
+    const d = lead.lead_date || lead.created_at?.substring(0,10);
+    if (d) { if (!byDate[d]) byDate[d] = []; byDate[d].push(lead); }
+  }
+
+  // Empty cells before month starts
+  for (let i = 0; i < first; i++) html += `<div class="cal-day other-month"></div>`;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===day;
+    const isSelected = selectedCalDay === dateStr;
+    const dayLeadList = byDate[dateStr] || [];
+    const dots = dayLeadList.slice(0,8).map(l => `<div class="cal-dot ${l.status}"></div>`).join('');
+    html += `<div class="cal-day ${isToday?'today':''} ${isSelected?'selected':''}" onclick="selectCalDay('${dateStr}')">
+      <div class="cal-day-num">${day}</div>
+      <div class="cal-dots">${dots}</div>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+
+  if (selectedCalDay && byDate[selectedCalDay]) {
+    renderCalDayLeads(selectedCalDay, byDate[selectedCalDay]);
+  } else if (selectedCalDay) {
+    dayLeads.innerHTML = `<div style="color:var(--muted);font-size:14px;padding:8px 0">No leads on this date</div>`;
+  } else {
+    dayLeads.innerHTML = '';
+  }
+}
+
+function selectCalDay(dateStr) {
+  selectedCalDay = selectedCalDay === dateStr ? null : dateStr;
+  renderCalendar();
+}
+
+function renderCalDayLeads(dateStr, leads) {
+  const el = document.getElementById('cal-day-leads');
+  const d = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  let html = `<div style="font-size:15px;font-weight:600;margin-bottom:10px">${d} — ${leads.length} lead${leads.length!==1?'s':''}</div>`;
+  html += leads.map(l => leadRowHTML(l)).join('');
+  el.innerHTML = html;
+}
+
+function renderLeadsList() {
+  const el = document.getElementById('leads-list-container');
+  if (!el) return;
+  if (!leadsData.length) { el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📋</div><h3>No leads yet</h3><p>Click "+ Add Lead" to add your first lead</p></div>'; return; }
+  el.innerHTML = leadsData.map(l => leadRowHTML(l)).join('');
+}
+
+function leadRowHTML(l) {
+  const veh = [l.vehicle_year, l.vehicle_make, l.vehicle_model].filter(Boolean).join(' ') || '—';
+  return `<div class="lead-row" onclick="openLead('${l.id}')">
+    <div style="flex:1">
+      <div class="lead-name">${esc(l.name)}</div>
+      <div class="lead-phone">${esc(l.phone || '')} ${l.email ? '· '+esc(l.email) : ''}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(veh)} · ${esc(l.source)}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <span class="status-badge status-${l.status}">${l.status}</span>
+      ${l.assigned_name ? `<span style="font-size:12px;color:var(--muted)">${esc(l.assigned_name)}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+// ---- Lead Detail ----
+
+async function openLead(id) {
+  currentLeadId = id;
+  showPage('lead-detail');
+  await loadLeadDetail(id);
+}
+
+async function loadLeadDetail(id) {
+  try {
+    const lead = await apiFetch('/api/leads/' + id);
+    document.getElementById('ld-name').textContent = lead.name;
+
+    // Status dropdown
+    const statuses = ['new','contacted','appointment','sold','lost'];
+    document.getElementById('ld-status').innerHTML = statuses.map(s =>
+      `<option value="${s}" ${lead.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+    ).join('');
+
+    // Assigned dropdown
+    const team = await apiFetch('/api/team');
+    document.getElementById('ld-assigned').innerHTML =
+      `<option value="">Unassigned</option>` +
+      team.map(m => `<option value="${m.id}" ${lead.assigned_to===m.id?'selected':''}>${esc(m.first_name+' '+m.last_name)}</option>`).join('');
+
+    // Contact info
+    const phoneEl = document.getElementById('ld-phone');
+    phoneEl.textContent = lead.phone || '—';
+    phoneEl.href = lead.phone ? `tel:${lead.phone}` : '';
+    const emailEl = document.getElementById('ld-email');
+    emailEl.textContent = lead.email || '—';
+    emailEl.href = lead.email ? `mailto:${lead.email}` : '';
+    document.getElementById('ld-source').textContent = lead.source || '—';
+    document.getElementById('ld-lead-date').textContent = lead.lead_date || '—';
+
+    // Vehicle of interest
+    document.getElementById('voi-year').value = lead.vehicle_year || '';
+    document.getElementById('voi-make').value = lead.vehicle_make || '';
+    document.getElementById('voi-model').value = lead.vehicle_model || '';
+    document.getElementById('voi-trim').value = lead.vehicle_trim || '';
+    document.getElementById('voi-vin').value = lead.vehicle_vin || '';
+    document.getElementById('voi-stock').value = lead.vehicle_stock_number || '';
+
+    // Notes
+    renderLeadNotes(lead.notes || []);
+    // Attachments
+    renderLeadAttachments(lead.attachments || []);
+    // Activities
+    renderLeadActivities(lead.activities || []);
+  } catch (e) { showToast('Error loading lead'); }
+}
+
+async function patchLead(field, value) {
+  try {
+    await apiFetch('/api/leads/' + currentLeadId, { method: 'PATCH', body: JSON.stringify({ [field]: value }) });
+    await loadLeadDetail(currentLeadId);
+  } catch (e) { showToast('Error updating lead'); }
+}
+
+async function saveVehicleOfInterest() {
+  try {
+    await apiFetch('/api/leads/' + currentLeadId, {
+      method: 'PATCH', body: JSON.stringify({
+        vehicle_year: parseInt(document.getElementById('voi-year').value) || null,
+        vehicle_make: document.getElementById('voi-make').value || null,
+        vehicle_model: document.getElementById('voi-model').value || null,
+        vehicle_trim: document.getElementById('voi-trim').value || null,
+        vehicle_vin: document.getElementById('voi-vin').value || null,
+        vehicle_stock_number: document.getElementById('voi-stock').value || null,
+      })
+    });
+    showToast('Vehicle info saved');
+  } catch (e) { showToast('Error saving'); }
+}
+
+async function deleteCurrentLead() {
+  if (!confirm('Delete this lead? This cannot be undone.')) return;
+  try {
+    await apiFetch('/api/leads/' + currentLeadId, { method: 'DELETE' });
+    await loadLeads();
+    showPage('leads');
+    showToast('Lead deleted');
+  } catch (e) { showToast('Error deleting lead'); }
+}
+
+function showLeadTab(name, btn) {
+  document.querySelectorAll('#page-lead-detail .detail-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#page-lead-detail .detail-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('lead-panel-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ---- Notes ----
+
+function renderLeadNotes(notes) {
+  const el = document.getElementById('lead-notes-list');
+  if (!notes.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;margin-bottom:8px">No notes yet</div>'; return; }
+  el.innerHTML = notes.map(n => `
+    <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${esc(n.author_name||'Unknown')} · ${fmtDate(n.created_at)}</div>
+      <div style="font-size:14px;line-height:1.5">${esc(n.content)}</div>
+      <button onclick="deleteLeadNote('${n.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:6px">Delete</button>
+    </div>`).join('');
+}
+
+async function addLeadNote() {
+  const content = document.getElementById('lead-note-input').value.trim();
+  if (!content) return;
+  try {
+    await apiFetch(`/api/leads/${currentLeadId}/notes`, { method: 'POST', body: JSON.stringify({ content }) });
+    document.getElementById('lead-note-input').value = '';
+    const lead = await apiFetch('/api/leads/' + currentLeadId);
+    renderLeadNotes(lead.notes || []);
+    renderLeadActivities(lead.activities || []);
+  } catch (e) { showToast('Error adding note'); }
+}
+
+async function deleteLeadNote(noteId) {
+  try {
+    await apiFetch(`/api/leads/${currentLeadId}/notes/${noteId}`, { method: 'DELETE' });
+    const lead = await apiFetch('/api/leads/' + currentLeadId);
+    renderLeadNotes(lead.notes || []);
+  } catch (e) { showToast('Error deleting note'); }
+}
+
+// ---- Attachments ----
+
+function renderLeadAttachments(attachments) {
+  const grid = document.getElementById('lead-att-grid');
+  if (!attachments.length) { grid.innerHTML = ''; return; }
+  grid.innerHTML = attachments.map(a => {
+    const isImg = a.mime_type?.startsWith('image/');
+    const url = a.url || `/uploads/leads/${currentLeadId}/${a.filename}`;
+    return `<div class="att-item" id="latt-${a.id}">
+      ${isImg
+        ? `<img class="att-thumb" src="${url}" onclick="openLightbox('${url}')" alt="">`
+        : `<div class="att-file"><span class="att-file-icon">📄</span>${esc(a.original_name||a.filename)}</div>`}
+      <button class="att-del" onclick="deleteLeadAttachment('${a.id}',event)">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function uploadLeadAttachments(input) {
+  if (!input.files.length) return;
+  const form = new FormData();
+  for (const f of input.files) form.append('files', f);
+  input.value = '';
+  try {
+    showToast('Uploading...');
+    const res = await fetch(`/api/leads/${currentLeadId}/attachments`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    const lead = await apiFetch('/api/leads/' + currentLeadId);
+    renderLeadAttachments(lead.attachments || []);
+    renderLeadActivities(lead.activities || []);
+    showToast(`${data.length} file${data.length>1?'s':''} uploaded`);
+  } catch (e) { showToast('Error uploading'); }
+}
+
+async function deleteLeadAttachment(attId, e) {
+  e.stopPropagation();
+  try {
+    await apiFetch(`/api/leads/${currentLeadId}/attachments/${attId}`, { method: 'DELETE' });
+    document.getElementById('latt-' + attId)?.remove();
+  } catch (e) { showToast('Error deleting attachment'); }
+}
+
+// ---- Activities ----
+
+function renderLeadActivities(activities) {
+  const el = document.getElementById('lead-activity-list');
+  if (!activities.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No activity yet</div>'; return; }
+  el.innerHTML = activities.map(a => `
+    <div class="activity-item">
+      <div class="activity-icon">${STATUS_ICONS[a.activity_type] || '📋'}</div>
+      <div class="activity-body">
+        <div class="activity-desc">${esc(a.description || a.activity_type)}</div>
+        <div class="activity-meta">${esc(a.user_name || 'System')} · ${fmtDate(a.created_at)}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ---- Add Lead Modal ----
+
+async function openAddLeadModal() {
+  // Populate assigned_to dropdown
+  try {
+    const team = await apiFetch('/api/team');
+    document.getElementById('al-assigned').innerHTML =
+      `<option value="">Unassigned</option>` +
+      team.map(m => `<option value="${m.id}">${esc(m.first_name+' '+m.last_name)}</option>`).join('');
+  } catch(e) {}
+  // Set today as default date
+  document.getElementById('al-date').value = new Date().toISOString().substring(0,10);
+  openModal('add-lead-modal');
+}
+
+async function submitAddLead() {
+  const name = document.getElementById('al-name').value.trim();
+  if (!name) { showToast('Name is required'); return; }
+  try {
+    await apiFetch('/api/leads', { method: 'POST', body: JSON.stringify({
+      name,
+      phone: document.getElementById('al-phone').value || null,
+      email: document.getElementById('al-email').value || null,
+      source: document.getElementById('al-source').value,
+      status: document.getElementById('al-status').value,
+      assigned_to: document.getElementById('al-assigned').value || null,
+      lead_date: document.getElementById('al-date').value || null,
+      vehicle_year: parseInt(document.getElementById('al-year').value) || null,
+      vehicle_make: document.getElementById('al-make').value || null,
+      vehicle_model: document.getElementById('al-model').value || null,
+      vehicle_vin: document.getElementById('al-vin').value || null,
+      vehicle_stock_number: document.getElementById('al-stock').value || null,
+      notes_summary: document.getElementById('al-notes').value || null,
+    })});
+    closeModal('add-lead-modal');
+    // Reset
+    ['al-name','al-phone','al-email','al-year','al-make','al-model','al-vin','al-stock','al-notes'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    await refreshLeads();
+    showToast('Lead added!');
+  } catch (e) { showToast('Error adding lead: ' + e.message); }
+}
+
+// ---- Date Formatter ----
+
+function fmtDate(ts) {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }); }
+  catch(e) { return ts; }
+}
