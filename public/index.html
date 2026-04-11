@@ -514,7 +514,7 @@
         <div class="form-group"><label>VIN</label><input type="text" id="voi-vin"></div>
         <div class="form-group"><label>Stock #</label><input type="text" id="voi-stock"></div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="saveVehicleOfInterest()">Save Vehicle Info</button>
+      <div style="text-align:right"><button class="btn btn-primary btn-sm" onclick="saveVehicleOfInterest()">Save Vehicle Info</button></div>
     </div>
     <!-- Detail Tabs -->
     <div class="detail-tabs">
@@ -525,9 +525,11 @@
     <!-- Notes -->
     <div class="detail-panel active" id="lead-panel-notes">
       <div id="lead-notes-list" style="margin-bottom:12px"></div>
-      <div style="display:flex;gap:8px">
-        <textarea id="lead-note-input" rows="2" placeholder="Add a note..." style="flex:1;resize:vertical;font-size:14px"></textarea>
-        <button class="btn btn-primary btn-sm" style="align-self:flex-end" onclick="addLeadNote()">Add</button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <textarea id="lead-note-input" rows="4" placeholder="Add a note..." style="width:100%;resize:vertical;font-size:14px;line-height:1.5"></textarea>
+        <div style="text-align:right">
+          <button class="btn btn-primary btn-sm" onclick="addLeadNote()">Add Note</button>
+        </div>
       </div>
     </div>
     <!-- Attachments -->
