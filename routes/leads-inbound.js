@@ -33,6 +33,61 @@ const parseMultipart = multer().none(); // Parse SendGrid multipart/form-data fi
 // HELPERS
 // ─────────────────────────────────────────────────────────────
 
+// Parse ADF/XML format (CarGurus XML leads)
+function parseCarGurusXml(xml) {
+  const result = {};
+  const tag = (name, str) => {
+    const re = new RegExp(`<${name}[^>]*>([^<]*)</${name}>`, 'i');
+    const m = str.match(re); return m ? m[1].trim() : null;
+  };
+  const attr = (tagName, attrName, str) => {
+    const re = new RegExp(`<${tagName}[^>]*${attrName}=['"]([^'"]*)['"][^>]*>`, 'i');
+    const m = str.match(re); return m ? m[1].trim() : null;
+  };
+
+  // Name
+  const firstName = (() => { const re = /<name[^>]*part=['"]first['"][^>]*>([^<]*)<\/name>/i; const m = xml.match(re); return m ? m[1].trim() : ''; })();
+  const lastName = (() => { const re = /<name[^>]*part=['"]last['"][^>]*>([^<]*)<\/name>/i; const m = xml.match(re); return m ? m[1].trim() : ''; })();
+  result.name = [firstName, lastName].filter(Boolean).join(' ') || 'Unknown';
+
+  // Contact
+  result.phone = tag('phone', xml);
+  result.email = tag('email', xml);
+  result.customer_zip = tag('postalcode', xml);
+
+  // Vehicle (in <vehicle> block)
+  const vehicleBlock = xml.match(/<vehicle[\s\S]*?<\/vehicle>/i)?.[0] || xml;
+  const vinMatch = vehicleBlock.match(/<id[^>]*>([A-HJ-NPR-Z0-9]{17})<\/id>/i);
+  result.vehicle_vin = vinMatch ? vinMatch[1] : null;
+  const yearStr = tag('year', vehicleBlock);
+  result.vehicle_year = yearStr ? parseInt(yearStr) : null;
+  result.vehicle_make = tag('make', vehicleBlock);
+  result.vehicle_model = tag('model', vehicleBlock);
+  result.vehicle_trim = tag('trim', vehicleBlock);
+  const priceStr = tag('price', vehicleBlock) || tag('amount', vehicleBlock);
+  result.listed_price = priceStr ? `$${parseFloat(priceStr).toLocaleString()}` : null;
+
+  // Stock number
+  const stockMatch = vehicleBlock.match(/<id[^>]*source=['"][^'"]*['"][^>]*>([^<]*)<\/id>/i);
+  result.vehicle_stock_number = stockMatch ? stockMatch[1].replace(/[^a-zA-Z0-9_-]/g,'') : null;
+
+  // Lead date from requestdate
+  const dateMatch = xml.match(/<requestdate>([^T<]+)/i);
+  if (dateMatch) {
+    try { result.lead_date = new Date(dateMatch[1]).toISOString().substring(0,10); }
+    catch(e) { result.lead_date = null; }
+  }
+
+  // Transaction/CG ID
+  const cgIdMatch = xml.match(/<id[^>]*source=['"]CarGurus['"][^>]*>([^<]+)<\/id>/i);
+  result.cargurus_transaction_id = cgIdMatch ? cgIdMatch[1].trim() : null;
+
+  // Comments/description
+  result.comments = tag('description', xml) || tag('comments', xml);
+
+  return result;
+}
+
 function parseCarGurusHtml(html) {
   // Simple regex-based parser — no cheerio dependency issue
   const result = {};
@@ -166,7 +221,10 @@ router.post('/cargurus', parseMultipart, async (req, res) => {
       return res.status(200).send('OK');
     }
 
-    const parsed = parseCarGurusHtml(html);
+    // Auto-detect XML (ADF format) vs HTML
+    const isXml = html.trim().startsWith('<?xml') || html.includes('<adf') || html.includes('<prospect');
+    const parsed = isXml ? parseCarGurusXml(html) : parseCarGurusHtml(html);
+    console.log('Parser:', isXml ? 'XML/ADF' : 'HTML', '| Name:', parsed.name, '|', parsed.vehicle_year, parsed.vehicle_make, parsed.vehicle_model);
 
     // Deduplication
     if (parsed.cargurus_transaction_id) {
@@ -201,8 +259,9 @@ router.post('/test', authenticate, express.json({ limit: '5mb' }), async (req, r
   try {
     const { html } = req.body;
     if (!html) return res.status(400).json({ error: 'html field required' });
-    const parsed = parseCarGurusHtml(html);
-    res.json({ parsed, preview: 'Parse-only — no lead created' });
+    const isXml = html.trim().startsWith('<?xml') || html.includes('<adf') || html.includes('<prospect');
+    const parsed = isXml ? parseCarGurusXml(html) : parseCarGurusHtml(html);
+    res.json({ parsed, format: isXml ? 'xml/adf' : 'html', preview: 'Parse-only — no lead created' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
