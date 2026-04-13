@@ -55,8 +55,8 @@ app.use('/api/auth', require('./routes/auth'));
 const auth = require('./middleware/auth');
 app.use('/api/vehicles', auth, require('./routes/vehicles'));
 app.use('/api/team', auth, require('./routes/team'));
+app.use('/api/leads/inbound', require('./routes/leads-inbound')); // No auth — SendGrid webhook (MUST be before /api/leads)
 app.use('/api/leads', auth, require('./routes/leads'));
-app.use('/api/leads/inbound', require('./routes/leads-inbound')); // No auth — SendGrid webhook
 
 // SPA fallback
 app.get('*', (req, res) => {
