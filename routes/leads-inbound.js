@@ -16,7 +16,15 @@ const authenticate = require('../middleware/auth');
 
 // In-memory store for last few inbound emails (for verification debugging)
 const lastEmails = [];
-router.get('/lastmail', authenticate, (req, res) => res.json(lastEmails.slice(-3)));
+router.get('/lastmail', (req, res) => {
+  // Show only the verification link for easy clicking — no auth needed
+  const emails = lastEmails.slice(-3).map(e => ({
+    from: e.from, subject: e.subject, ts: e.ts,
+    links: (e.text.match(/https:\/\/mail-settings\.google\.com\/[^\s\r\n]+/g) || []),
+    preview: e.text.substring(0, 300)
+  }));
+  res.json(emails);
+});
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 const parseMultipart = multer().none(); // Parse SendGrid multipart/form-data fields (no files)
