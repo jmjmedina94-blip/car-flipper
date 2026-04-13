@@ -19,6 +19,7 @@ const lastEmails = [];
 router.get('/lastmail', authenticate, (req, res) => res.json(lastEmails.slice(-3)));
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const parseMultipart = multer().none(); // Parse SendGrid multipart/form-data fields (no files)
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -135,7 +136,7 @@ async function createCarGurusLead(parsed, orgId) {
 // ─────────────────────────────────────────────────────────────
 // POST /api/leads/inbound/cargurus  (no JWT — SendGrid webhook)
 // ─────────────────────────────────────────────────────────────
-router.post('/cargurus', express.urlencoded({ extended: true }), async (req, res) => {
+router.post('/cargurus', parseMultipart, async (req, res) => {
   try {
     const secret = process.env.SENDGRID_WEBHOOK_SECRET;
     if (secret && req.query.secret !== secret) {
