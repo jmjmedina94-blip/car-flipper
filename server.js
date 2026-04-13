@@ -26,8 +26,11 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 app.get('/api/debug/db', async (req, res) => {
   try {
     const db = require('./database');
-    const r = await db.query('SELECT COUNT(*) as cnt FROM users');
-    res.json({ mode: db.isPg ? 'postgresql' : 'sqlite', userCount: r.rows[0].cnt, dbUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0,30)+'...' : 'NOT SET' });
+    const [users, leads] = await Promise.all([
+      db.query('SELECT COUNT(*) as cnt FROM users'),
+      db.query('SELECT COUNT(*) as cnt FROM leads')
+    ]);
+    res.json({ mode: db.isPg ? 'postgresql' : 'sqlite', userCount: users.rows[0].cnt, leadCount: leads.rows[0].cnt, dbUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0,30)+'...' : 'NOT SET' });
   } catch (e) { res.json({ error: e.message }); }
 });
 
