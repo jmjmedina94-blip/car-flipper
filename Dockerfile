@@ -2,8 +2,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Install build deps for better-sqlite3 native module
-RUN apk add --no-cache python3 make g++
+# Install build deps for better-sqlite3 + sharp (image processing)
+RUN apk add --no-cache python3 make g++ vips-dev fftw-dev jpeg-dev libpng-dev libwebp-dev tiff-dev imagemagick
 
 COPY package*.json ./
 RUN npm ci --omit=dev

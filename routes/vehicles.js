@@ -5,6 +5,23 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../database');
+let sharp; try { sharp = require('sharp'); } catch(e) { sharp = null; }
+
+// Convert any image (including HEIC) to JPEG for browser compatibility
+async function toJpeg(filePath) {
+  if (!sharp) return filePath;
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.jpg' || ext === '.jpeg') return filePath; // already JPEG
+  const jpgPath = filePath.replace(/\.[^.]+$/, '.jpg');
+  try {
+    await sharp(filePath).jpeg({ quality: 88 }).toFile(jpgPath);
+    fs.unlinkSync(filePath); // remove original
+    return jpgPath;
+  } catch(e) {
+    console.error('Image conversion error:', e.message);
+    return filePath; // fall back to original if conversion fails
+  }
+}
 
 const UPLOADS_ROOT = process.env.UPLOADS_DIR || path.resolve(__dirname, '..', 'uploads');
 
@@ -188,9 +205,13 @@ router.post('/:id/photos', upload.array('photos', 20), async (req, res) => {
     if (!req.files?.length) return res.status(400).json({ error: 'No files uploaded' });
     const inserted = [];
     for (const file of req.files) {
+      // Convert HEIC/HEIF and other non-web formats to JPEG
+      const originalPath = path.join(UPLOADS_ROOT, 'vehicles', req.params.id, file.filename);
+      const convertedPath = await toJpeg(originalPath);
+      const finalFilename = path.basename(convertedPath);
       const id = uuidv4();
-      await db.query('INSERT INTO photos (id, vehicle_id, filename, original_name) VALUES ($1,$2,$3,$4)', [id, req.params.id, file.filename, file.originalname]);
-      inserted.push({ id, filename: file.filename, url: `/uploads/vehicles/${req.params.id}/${file.filename}` });
+      await db.query('INSERT INTO photos (id, vehicle_id, filename, original_name) VALUES ($1,$2,$3,$4)', [id, req.params.id, finalFilename, file.originalname]);
+      inserted.push({ id, filename: finalFilename, url: `/uploads/vehicles/${req.params.id}/${finalFilename}` });
     }
     res.status(201).json(inserted);
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
