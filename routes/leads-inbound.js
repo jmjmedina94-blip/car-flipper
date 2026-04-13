@@ -142,6 +142,9 @@ router.post('/cargurus', express.urlencoded({ extended: true }), async (req, res
     const subject = req.body.subject || '';
     const html = req.body.html || req.body.text || '';
 
+    // Log ALL inbound emails for debugging (includes Gmail verification)
+    console.log('=== INBOUND EMAIL ===', 'From:', from, 'Subject:', subject, 'Text preview:', (req.body.text||'').substring(0,500));
+
     // Validate sender + subject
     if (!from.includes('cargurus.com') || !subject.toLowerCase().includes('lead submission')) {
       console.log('Inbound email ignored — not a CarGurus lead. From:', from, 'Subject:', subject);
@@ -286,6 +289,19 @@ router.post('/csv', authenticate, upload.single('csv'), async (req, res) => {
 // GET /api/leads/inbound/status — confirm endpoint is live
 router.get('/status', authenticate, (req, res) => {
   res.json({ ok: true, message: 'CarGurus inbound parser ready', defaultOrgSet: !!process.env.DEFAULT_ORG_ID });
+});
+
+// Temporary: catch ALL inbound emails and log them (for Gmail forwarding verification)
+router.post('/debug', express.urlencoded({ extended: true }), (req, res) => {
+  const from = req.body.from || '';
+  const subject = req.body.subject || '';
+  const text = req.body.text || req.body.html || '';
+  console.log('=== INBOUND DEBUG EMAIL ===');
+  console.log('From:', from);
+  console.log('Subject:', subject);
+  console.log('Text (first 1000):', text.substring(0, 1000));
+  console.log('=========================');
+  res.status(200).send('OK');
 });
 
 module.exports = router;
