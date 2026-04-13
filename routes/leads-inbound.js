@@ -20,8 +20,8 @@ router.get('/lastmail', (req, res) => {
   // Show only the verification link for easy clicking — no auth needed
   const emails = lastEmails.slice(-3).map(e => ({
     from: e.from, subject: e.subject, ts: e.ts,
-    links: (e.text.match(/https:\/\/mail-settings\.google\.com\/[^\s\r\n]+/g) || []),
-    preview: e.text.substring(0, 300)
+    links: (e.text.match(/https:\/\/mail[^\s\r\n]+google\.com\/mail[^\s\r\n]+/g) || []),
+    preview: e.text.substring(0, 1500)
   }));
   res.json(emails);
 });
