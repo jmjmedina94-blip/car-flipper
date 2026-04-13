@@ -448,6 +448,7 @@
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary btn-sm" id="leads-cal-btn" onclick="switchLeadsView('calendar')">📅 Calendar</button>
         <button class="btn btn-ghost btn-sm" id="leads-list-btn" onclick="switchLeadsView('list')">☰ List</button>
+        <button class="btn btn-secondary btn-sm" onclick="openCsvImportModal()">📥 Import CSV</button>
         <button class="btn btn-primary btn-sm" onclick="openAddLeadModal()">+ Add Lead</button>
       </div>
     </div>
@@ -545,6 +546,43 @@
     <!-- Activity -->
     <div class="detail-panel" id="lead-panel-activity">
       <div id="lead-activity-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CSV Import Modal -->
+<div class="modal-overlay" id="csv-import-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📥 Import Leads from CSV</h2>
+      <button class="modal-close" onclick="closeModal('csv-import-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Upload a CSV file to bulk import leads. Required column: <code>first_name</code> or <code>last_name</code>. Optional: <code>phone, email, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, stock_number, source, lead_date, comments</code></p>
+      <div id="csv-idle">
+        <label for="csv-file-input" class="upload-zone" style="display:block;cursor:pointer">
+          <div style="font-size:32px;margin-bottom:8px">📄</div>
+          <div>Tap to select CSV file</div>
+        </label>
+        <input type="file" id="csv-file-input" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0" onchange="startCsvImport(this)">
+      </div>
+      <div id="csv-progress" style="display:none">
+        <div style="font-size:14px;color:var(--muted);margin-bottom:12px" id="csv-status">Processing...</div>
+        <div style="background:var(--border);border-radius:6px;height:10px;overflow:hidden">
+          <div id="csv-bar" style="background:var(--accent);height:100%;width:0;transition:width 0.3s"></div>
+        </div>
+      </div>
+      <div id="csv-result" style="display:none">
+        <div id="csv-summary" style="font-size:15px;margin-bottom:12px"></div>
+        <div id="csv-errors-section" style="display:none">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Failed rows:</div>
+          <div id="csv-errors-list" style="max-height:200px;overflow-y:auto;font-size:12px;font-family:monospace;background:var(--bg);border-radius:8px;padding:10px"></div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="downloadCsvErrors()">Download Error Log</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeCsvModal()">Close</button>
     </div>
   </div>
 </div>

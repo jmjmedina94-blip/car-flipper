@@ -1051,3 +1051,92 @@ function fmtDate(ts) {
   try { return new Date(ts).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }); }
   catch(e) { return ts; }
 }
+
+// ============================================================
+// ---- CSV IMPORT ----
+// ============================================================
+
+let csvErrors = [];
+
+function openCsvImportModal() {
+  // Reset state
+  document.getElementById('csv-idle').style.display = '';
+  document.getElementById('csv-progress').style.display = 'none';
+  document.getElementById('csv-result').style.display = 'none';
+  document.getElementById('csv-file-input').value = '';
+  csvErrors = [];
+  openModal('csv-import-modal');
+}
+
+function closeCsvModal() {
+  closeModal('csv-import-modal');
+  // Refresh leads if import happened
+  loadLeads().then(() => { if (leadsView === 'calendar') renderCalendar(); else renderLeadsList(); });
+}
+
+async function startCsvImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  document.getElementById('csv-idle').style.display = 'none';
+  document.getElementById('csv-progress').style.display = '';
+  document.getElementById('csv-result').style.display = 'none';
+
+  // Simulate progress while uploading (real progress comes from response)
+  let fakeProgress = 0;
+  const progressInterval = setInterval(() => {
+    fakeProgress = Math.min(fakeProgress + 5, 85);
+    document.getElementById('csv-bar').style.width = fakeProgress + '%';
+    document.getElementById('csv-status').textContent = `Uploading ${file.name}...`;
+  }, 200);
+
+  const form = new FormData();
+  form.append('csv', file);
+
+  try {
+    const res = await fetch('/api/leads/import/csv', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: form
+    });
+    clearInterval(progressInterval);
+    document.getElementById('csv-bar').style.width = '100%';
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Import failed');
+
+    csvErrors = data.errors || [];
+    document.getElementById('csv-progress').style.display = 'none';
+    document.getElementById('csv-result').style.display = '';
+
+    const summary = document.getElementById('csv-summary');
+    summary.innerHTML = `
+      <div style="color:var(--green);font-size:18px;margin-bottom:4px">✅ Import Complete</div>
+      <div style="color:var(--text)">Total rows: <strong>${data.total}</strong> &nbsp;|&nbsp;
+      Imported: <strong style="color:var(--green)">${data.imported}</strong> &nbsp;|&nbsp;
+      Skipped: <strong style="color:var(--yellow)">${data.skipped}</strong></div>`;
+
+    if (csvErrors.length) {
+      document.getElementById('csv-errors-section').style.display = '';
+      document.getElementById('csv-errors-list').innerHTML =
+        csvErrors.map(e => `Row ${e.row}: ${esc(e.reason)}`).join('<br>');
+    }
+    showToast(`${data.imported} leads imported!`);
+  } catch (e) {
+    clearInterval(progressInterval);
+    document.getElementById('csv-progress').style.display = 'none';
+    document.getElementById('csv-result').style.display = '';
+    document.getElementById('csv-summary').innerHTML = `<div style="color:var(--red)">❌ Import failed: ${esc(e.message)}</div>`;
+    showToast('Import failed: ' + e.message);
+  }
+}
+
+function downloadCsvErrors() {
+  if (!csvErrors.length) return;
+  const lines = ['Row,Reason', ...csvErrors.map(e => `${e.row},"${e.reason.replace(/"/g,'""')}"`)];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'import-errors.csv';
+  a.click();
+}

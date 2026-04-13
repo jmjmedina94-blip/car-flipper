@@ -88,6 +88,10 @@ if (DATABASE_URL) {
       vehicle_stock_number TEXT,
       lead_date TEXT,
       notes_summary TEXT,
+      listed_price TEXT,
+      customer_zip TEXT,
+      cargurus_transaction_id TEXT UNIQUE,
+      cargurus_listing_url TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -117,6 +121,14 @@ if (DATABASE_URL) {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `).then(() => console.log('PG schema ready')).catch(e => console.error('PG schema error:', e.message));
+
+  // Migrations for existing PG DBs
+  pool.query(`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS listed_price TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS customer_zip TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS cargurus_transaction_id TEXT UNIQUE;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS cargurus_listing_url TEXT;
+  `).catch(() => {});
 
   // Wrap pool to look like better-sqlite3 interface
   db = {
@@ -224,6 +236,10 @@ if (DATABASE_URL) {
       vehicle_stock_number TEXT,
       lead_date TEXT,
       notes_summary TEXT,
+      listed_price TEXT,
+      customer_zip TEXT,
+      cargurus_transaction_id TEXT UNIQUE,
+      cargurus_listing_url TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
