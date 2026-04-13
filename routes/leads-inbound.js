@@ -14,6 +14,10 @@ const { parse: csvParse } = require('csv-parse/sync');
 const db = require('../database');
 const authenticate = require('../middleware/auth');
 
+// In-memory store for last few inbound emails (for verification debugging)
+const lastEmails = [];
+router.get('/lastmail', authenticate, (req, res) => res.json(lastEmails.slice(-3)));
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // ─────────────────────────────────────────────────────────────
@@ -142,7 +146,9 @@ router.post('/cargurus', express.urlencoded({ extended: true }), async (req, res
     const subject = req.body.subject || '';
     const html = req.body.html || req.body.text || '';
 
-    // Log ALL inbound emails for debugging (includes Gmail verification)
+    // Log + store ALL inbound emails for debugging
+    const emailSnap = { from, subject, text: (req.body.text||'').substring(0, 2000), ts: new Date().toISOString() };
+    lastEmails.push(emailSnap); if (lastEmails.length > 5) lastEmails.shift();
     console.log('=== INBOUND EMAIL ===', 'From:', from, 'Subject:', subject, 'Text preview:', (req.body.text||'').substring(0,500));
 
     // Validate sender + subject
