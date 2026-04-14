@@ -552,37 +552,39 @@
       </div>
     </div>
     <!-- Filters -->
-    <div id="leads-filter-bar" style="display:flex;gap:6px;margin-bottom:16px;align-items:center;flex-wrap:nowrap;overflow-x:auto">
-      <select id="leads-filter-status" onchange="refreshLeads()" style="max-width:140px">
-        <option value="">All Statuses</option>
-        <option value="new">New</option>
-        <option value="reengaged">Reengaged</option>
-        <option value="contacted">Contacted</option>
-        <option value="appointment">Appointment</option>
-        <option value="sold">Sold</option>
-        <option value="lost">Lost</option>
-      </select>
-      <select id="leads-filter-year" onchange="onVehicleFilterChange('year')" style="max-width:100px">
-        <option value="">Year</option>
-      </select>
-      <select id="leads-filter-make" onchange="onVehicleFilterChange('make')" style="max-width:120px">
-        <option value="">Make</option>
-      </select>
-      <select id="leads-filter-model" onchange="onVehicleFilterChange('model')" style="max-width:140px">
-        <option value="">Model</option>
-      </select>
-      <select id="leads-sort" onchange="changeLeadsSort(this.value)" style="max-width:200px">
-        <option value="lead_date_desc">Lead Date (Newest)</option>
-        <option value="lead_date_asc">Lead Date (Oldest)</option>
-        <option value="contacted_desc">Last Contacted (Newest)</option>
-        <option value="contacted_asc">Last Contacted (Oldest)</option>
-      </select>
-      <input type="text" id="leads-search" placeholder="Search..." oninput="refreshLeads()" style="flex:1;min-width:80px">
-      <select id="leads-page-size" onchange="changeLeadsPageSize(this.value)" style="max-width:80px">
-        <option value="10">10</option>
-        <option value="25" selected>25</option>
-        <option value="50">50</option>
-      </select>
+    <div id="leads-filter-bar" style="margin-bottom:16px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px">
+        <select id="leads-filter-status" onchange="refreshLeads()" style="max-width:140px">
+          <option value="">All Statuses</option>
+          <option value="new">New</option>
+          <option value="reengaged">Reengaged</option>
+          <option value="contacted">Contacted</option>
+          <option value="appointment">Appointment</option>
+          <option value="sold">Sold</option>
+          <option value="lost">Lost</option>
+        </select>
+        <select id="leads-filter-year" onchange="onVehicleFilterChange('year')" style="max-width:100px">
+          <option value="">Year</option>
+        </select>
+        <select id="leads-filter-make" onchange="onVehicleFilterChange('make')" style="max-width:120px">
+          <option value="">Make</option>
+        </select>
+        <select id="leads-filter-model" onchange="onVehicleFilterChange('model')" style="max-width:140px">
+          <option value="">Model</option>
+        </select>
+        <select id="leads-sort" onchange="changeLeadsSort(this.value)" style="max-width:200px">
+          <option value="lead_date_desc">Lead Date (Newest)</option>
+          <option value="lead_date_asc">Lead Date (Oldest)</option>
+          <option value="contacted_desc">Last Contacted (Newest)</option>
+          <option value="contacted_asc">Last Contacted (Oldest)</option>
+        </select>
+        <select id="leads-page-size" onchange="changeLeadsPageSize(this.value)" style="max-width:80px">
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+      <input type="text" id="leads-search" placeholder="Search name, phone, email..." oninput="refreshLeads()" style="width:100%">
     </div>
     <!-- Calendar View -->
     <div id="leads-calendar-view">
