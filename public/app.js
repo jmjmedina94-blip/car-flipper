@@ -324,32 +324,6 @@ async function loadDealerInventory() {
   } catch (e) {}
 }
 
-async function syncDealerInventory() {
-  const btn = document.getElementById('dealer-sync-btn');
-  btn.disabled = true;
-  btn.textContent = 'Syncing...';
-  try {
-    const res = await fetch('/api/dealer-inventory/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      renderDealerInventory(data.vehicles || []);
-      renderDealerSyncStatus(data.lastSync);
-      showToast(`Synced ${data.vehicles?.length || 0} vehicles via ${data.strategy || 'unknown'}`);
-    } else {
-      const details = data.details ? data.details.join(' | ') : data.error || 'Unknown error';
-      showToast('Sync failed: ' + details);
-      console.error('Sync error details:', data);
-    }
-  } catch (e) {
-    showToast('Sync failed: network error');
-    console.error('Sync error:', e);
-  }
-  btn.disabled = false;
-  btn.textContent = 'Sync Inventory';
-}
 
 function renderDealerSyncStatus(sync) {
   const el = document.getElementById('dealer-last-sync');
@@ -364,7 +338,7 @@ function renderDealerInventory(vehicles) {
   const el = document.getElementById('dealer-inventory-grid');
   if (!el) return;
   if (!vehicles.length) {
-    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🏪</div><h3>No dealer inventory</h3><p>Click "Sync Inventory" to fetch listings from gamotorsca.com</p></div>';
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🏪</div><h3>No dealer inventory</h3><p>Inventory syncs automatically from the local sync script</p></div>';
     return;
   }
   el.innerHTML = vehicles.map(v => {

@@ -95,40 +95,14 @@ async function scrape() {
       const externalId = detailHref.split('/').pop() || null;
       const detailUrl = detailHref.startsWith('http') ? detailHref : DEALER_BASE + detailHref;
 
-      // VIN extraction
-      let vin = null;
-      $card.find('.features-list .feature, .vehicle-features li, li.feature, .spec-item').each((j, feat) => {
-        const text = $(feat).text().toLowerCase();
-        if (text.includes('vin')) {
-          const value = $(feat).find('.feature-value, .spec-value, span:last-child').text().trim();
-          if (value && /^[A-HJ-NPR-Z0-9]{17}$/i.test(value)) vin = value.toUpperCase();
-        }
-      });
-      if (!vin) vin = $card.attr('data-vin') || $card.find('[data-vin]').attr('data-vin') || null;
-      if (!vin) {
-        const cardHtml = $card.html() || '';
-        const vinAttrMatch = cardHtml.match(/vin['":\s=]+["']?([A-HJ-NPR-Z0-9]{17})/i);
-        if (vinAttrMatch) vin = vinAttrMatch[1].toUpperCase();
-      }
-      if (!vin) {
-        const cardText = $card.text();
-        const vinMatch = cardText.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
-        if (vinMatch) vin = vinMatch[1].toUpperCase();
-      }
-      if (!vin) {
-        const allText = (detailHref + ' ' + (photoUrl || '')).toUpperCase();
-        const urlVin = allText.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
-        if (urlVin) vin = urlVin[1];
-      }
-
       if (year || make) {
-        vehicles.push({ year, make, model, trim: trim || null, price, mileage, photoUrl, detailUrl, externalId, vin });
+        vehicles.push({ year, make, model, trim: trim || null, price, mileage, photoUrl, detailUrl, externalId, vin: null });
       }
     });
 
     console.log(`Scraped ${vehicles.length} vehicles`);
     vehicles.forEach((v, i) => {
-      console.log(`  ${i + 1}. ${v.year} ${v.make} ${v.model || ''} — $${v.price || '?'} — VIN: ${v.vin || 'n/a'}`);
+      console.log(`  ${i + 1}. ${v.year} ${v.make} ${v.model || ''} — $${v.price || '?'} — ${v.mileage ? v.mileage.toLocaleString() + ' mi' : 'n/a'}`);
     });
 
     return vehicles;

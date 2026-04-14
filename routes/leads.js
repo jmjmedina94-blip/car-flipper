@@ -167,17 +167,13 @@ router.get('/:id', async (req, res) => {
                 FROM lead_activities la LEFT JOIN users u ON la.user_id = u.id
                 WHERE la.lead_id = $1 ORDER BY la.created_at DESC`, [req.params.id]),
     ]);
-    // Match vehicles of interest to dealer inventory
+    // Match vehicles of interest to dealer inventory by year+make+model, prefer mileage match
     const enrichedVehicles = [];
     for (const v of vehicles.rows) {
       let match = null;
-      if (v.vehicle_vin) {
-        const r = await db.query('SELECT photo_url, price, mileage, detail_url, vin FROM dealer_inventory WHERE vin = $1 LIMIT 1', [v.vehicle_vin]);
-        if (r.rows.length) match = r.rows[0];
-      }
-      if (!match && v.vehicle_year && v.vehicle_make && v.vehicle_model) {
+      if (v.vehicle_year && v.vehicle_make && v.vehicle_model) {
         const r = await db.query(
-          'SELECT photo_url, price, mileage, detail_url, vin FROM dealer_inventory WHERE vehicle_year = $1 AND vehicle_make = $2 AND vehicle_model = $3 LIMIT 1',
+          'SELECT photo_url, price, mileage, detail_url, vin FROM dealer_inventory WHERE vehicle_year = $1 AND vehicle_make = $2 AND vehicle_model = $3 ORDER BY created_at DESC',
           [v.vehicle_year, v.vehicle_make, v.vehicle_model]
         );
         if (r.rows.length) match = r.rows[0];
