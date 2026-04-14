@@ -30,10 +30,25 @@ async function logActivity(leadId, userId, type, description) {
   );
 }
 
+// GET /api/leads/vehicles — distinct vehicle year/make/model from lead_vehicles
+router.get('/vehicles', async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT DISTINCT lv.vehicle_year, lv.vehicle_make, lv.vehicle_model
+       FROM lead_vehicles lv
+       JOIN leads l ON lv.lead_id = l.id
+       WHERE l.org_id = $1 AND lv.vehicle_make IS NOT NULL
+       ORDER BY lv.vehicle_year DESC, lv.vehicle_make ASC, lv.vehicle_model ASC`,
+      [req.user.orgId]
+    );
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/leads
 router.get('/', async (req, res) => {
   try {
-    const { status, assigned_to, search, date_from, date_to } = req.query;
+    const { status, assigned_to, search, date_from, date_to, vehicle } = req.query;
     let sql = `SELECT l.*,
       u.first_name || ' ' || u.last_name as assigned_name,
       (SELECT COUNT(*) FROM lead_notes WHERE lead_id = l.id) as note_count,
@@ -57,6 +72,10 @@ router.get('/', async (req, res) => {
     if (search) {
       sql += ` AND (l.name ILIKE $${i} OR l.phone ILIKE $${i} OR l.email ILIKE $${i})`;
       params.push(`%${search}%`); i++;
+    }
+    if (vehicle) {
+      sql += ` AND l.id IN (SELECT lead_id FROM lead_vehicles WHERE vehicle_year || ' ' || vehicle_make || ' ' || vehicle_model = $${i++})`;
+      params.push(vehicle);
     }
     sql += ' ORDER BY l.created_at DESC';
     // SQLite doesn’t support ILIKE — use LIKE for compat

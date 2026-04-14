@@ -210,7 +210,7 @@ function showPage(name) {
   if (name === 'inventory') loadAndRenderInventory('ga_motors'); // legacy fallback
   if (name === 'dashboard') loadVehicles('ga_motors').then(renderDashboard);
   if (name === 'team') loadTeam();
-  if (name === 'leads') { loadLeads().then(() => switchLeadsView(leadsView)); }
+  if (name === 'leads') { loadLeadVehicleFilter(); loadLeads().then(() => switchLeadsView(leadsView)); }
 }
 
 // ---- Vehicles ----
@@ -952,13 +952,30 @@ async function loadLeads() {
   try {
     const status = document.getElementById('leads-filter-status')?.value || '';
     const search = document.getElementById('leads-search')?.value || '';
+    const vehicle = document.getElementById('leads-filter-vehicle')?.value || '';
     let url = '/api/leads?';
     if (status) url += `status=${encodeURIComponent(status)}&`;
     if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (vehicle) url += `vehicle=${encodeURIComponent(vehicle)}&`;
     const result = await apiFetch(url);
     leadsData = Array.isArray(result) ? result : [];
     if (!Array.isArray(leadsData)) leadsData = [];
   } catch (e) { leadsData = []; }
+}
+
+async function loadLeadVehicleFilter() {
+  try {
+    const vehicles = await apiFetch('/api/leads/vehicles');
+    const sel = document.getElementById('leads-filter-vehicle');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All Vehicles</option>' +
+      vehicles.map(v => {
+        const label = [v.vehicle_year, v.vehicle_make, v.vehicle_model].filter(Boolean).join(' ');
+        return `<option value="${esc(label)}">${esc(label)}</option>`;
+      }).join('');
+    sel.value = current;
+  } catch (e) {}
 }
 
 async function refreshLeads() {

@@ -562,6 +562,9 @@
         <option value="sold">Sold</option>
         <option value="lost">Lost</option>
       </select>
+      <select id="leads-filter-vehicle" onchange="refreshLeads()" style="max-width:180px">
+        <option value="">All Vehicles</option>
+      </select>
       <input type="text" id="leads-search" placeholder="Search name, phone, email..." oninput="refreshLeads()" style="flex:1;min-width:160px">
       <select id="leads-sort" onchange="changeLeadsSort(this.value)" style="max-width:200px">
         <option value="lead_date_desc">Lead Date (Newest)</option>
