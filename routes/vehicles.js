@@ -5,31 +5,30 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../database');
-const { execFile } = require('child_process');
-const util = require('util');
-const execFileAsync = util.promisify(execFile);
-let sharp; try { sharp = require('sharp'); } catch(e) { sharp = null; }
+const sharp = require('sharp');
 
-// Convert any image (including HEIC) to JPEG for browser compatibility
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+
+// Convert any image (including HEIC/HEIF/WebP/PNG) to JPEG for browser compatibility
 async function toJpeg(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.jpg' || ext === '.jpeg') return filePath;
+  if (ext === '.jpg' || ext === '.jpeg') {
+    // Re-encode through sharp to strip EXIF rotation issues
+    const tmpPath = filePath + '.tmp.jpg';
+    try {
+      await sharp(filePath).rotate().jpeg({ quality: 88 }).toFile(tmpPath);
+      fs.unlinkSync(filePath);
+      fs.renameSync(tmpPath, filePath);
+    } catch (e) { try { fs.unlinkSync(tmpPath); } catch(_) {} }
+    return filePath;
+  }
   const jpgPath = filePath.replace(/\.[^.]+$/, '.jpg');
   try {
-    // Try sharp first
-    if (sharp) {
-      await sharp(filePath).jpeg({ quality: 88 }).toFile(jpgPath);
-      fs.unlinkSync(filePath);
-      return jpgPath;
-    }
-    // Fallback: ImageMagick convert
-    await execFileAsync('convert', [filePath, jpgPath]);
+    await sharp(filePath).rotate().jpeg({ quality: 88 }).toFile(jpgPath);
     fs.unlinkSync(filePath);
     return jpgPath;
   } catch(e) {
     console.error('Image conversion error:', e.message);
-    // Last resort: rename to .jpg and hope browser can handle it
-    try { fs.renameSync(filePath, jpgPath); return jpgPath; } catch(e2) {}
     return filePath;
   }
 }
@@ -55,7 +54,15 @@ const storage = multer.diskStorage({
     cb(null, uuidv4() + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    // Accept known image types; also accept octet-stream (HEIC from some clients)
+    if (ALLOWED_MIME.has(file.mimetype) || file.mimetype === 'application/octet-stream') return cb(null, true);
+    cb(new Error('Only JPEG, PNG, WebP, and HEIC/HEIF images are allowed'));
+  }
+});
 
 // GET /api/vehicles
 router.get('/', async (req, res) => {

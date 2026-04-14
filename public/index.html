@@ -452,9 +452,9 @@
       <label for="photo-input" class="upload-zone" id="upload-zone" style="display:block;cursor:pointer">
         <div style="font-size:32px;margin-bottom:8px">📸</div>
         <div>Tap to upload photos</div>
-        <div style="font-size:12px;margin-top:4px">JPG, PNG, HEIC up to 20MB each</div>
+        <div style="font-size:12px;margin-top:4px">JPEG, PNG, HEIC/HEIF, WebP up to 20MB each</div>
       </label>
-      <input type="file" id="photo-input" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;" onchange="uploadPhotos(this)">
+      <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;" onchange="uploadPhotos(this)">
     </div>
     <!-- Notes -->
     <div class="detail-panel" id="panel-notes">

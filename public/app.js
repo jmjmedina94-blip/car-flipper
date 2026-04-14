@@ -502,9 +502,14 @@ function renderPhotos(photos, vehicleId) {
     </div>`).join('');
 }
 
-// Compress image to max 1600px wide, quality 0.85, max ~1.5MB
+// Compress image to max 1600px wide, quality 0.85 — HEIC/HEIF sent raw (server converts)
 function compressImage(file) {
   return new Promise(resolve => {
+    const name = file.name.toLowerCase();
+    // HEIC/HEIF can't be decoded by browser canvas — send raw for server-side conversion
+    if (name.endsWith('.heic') || name.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif') {
+      resolve(file); return;
+    }
     if (!file.type.startsWith('image/')) { resolve(file); return; }
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -517,9 +522,12 @@ function compressImage(file) {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      canvas.toBlob(blob => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })), 'image/jpeg', 0.85);
+      canvas.toBlob(blob => {
+        if (blob) resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        else resolve(file);
+      }, 'image/jpeg', 0.85);
     };
-    img.onerror = () => resolve(file);
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
     img.src = url;
   });
 }
@@ -531,7 +539,7 @@ async function uploadPhotos(input) {
 
 async function uploadPhotosFromFiles(files) {
   if (!files || !files.length) return;
-  showToast('Compressing photos...');
+  showToast('Uploading photos...');
   const form = new FormData();
   for (const f of files) {
     const compressed = await compressImage(f);
