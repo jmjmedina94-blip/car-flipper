@@ -183,6 +183,7 @@ router.post('/:id/notes', async (req, res) => {
 
 // DELETE /api/leads/:id/notes/:noteId
 router.delete('/:id/notes/:noteId', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Only admins can delete notes' });
   try {
     await db.query('DELETE FROM lead_notes WHERE id = $1', [req.params.noteId]);
     res.json({ ok: true });

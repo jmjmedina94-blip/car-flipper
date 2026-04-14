@@ -1037,7 +1037,7 @@ function renderLeadNotes(notes) {
     <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border)">
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${esc(n.author_name||'Unknown')} · ${fmtDate(n.created_at)}</div>
       <div style="font-size:14px;line-height:1.5">${esc(n.content)}</div>
-      <button onclick="deleteLeadNote('${n.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:6px">Delete</button>
+      ${isAdmin() ? `<button onclick="deleteLeadNote('${n.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:6px">Delete</button>` : ''}
     </div>`).join('');
 }
 
