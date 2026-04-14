@@ -23,7 +23,7 @@ function requireRole(...roles) {
 /**
  * Attach full user record to req.fullUser (for permission checks)
  */
-async function attachUserPermissions(db) {
+function attachUserPermissions(db) {
   return async (req, res, next) => {
     if (!req.user?.userId) return next();
     try {
