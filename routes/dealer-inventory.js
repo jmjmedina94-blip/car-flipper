@@ -31,6 +31,19 @@ function randomDelay(min = 500, max = 2000) {
   return new Promise(r => setTimeout(r, min + Math.random() * (max - min)));
 }
 
+// Strip Wayback Machine URL prefix: /web/{timestamp}/https://... → https://...
+function cleanUrl(url) {
+  if (!url) return null;
+  const wbMatch = url.match(/\/web\/\d+\/(https?:\/\/.+)/);
+  if (wbMatch) return wbMatch[1];
+  // Also handle relative Wayback paths
+  if (url.startsWith('/web/')) {
+    const m = url.match(/\/web\/\d+\/(.+)/);
+    if (m) return m[1];
+  }
+  return url;
+}
+
 function parseVehicleCards(html) {
   const $ = cheerio.load(html);
   const vehicles = [];
@@ -41,8 +54,25 @@ function parseVehicleCards(html) {
     const trim = $card.find('span.inventory-trim').text().trim();
     const priceText = $card.find('.price-mileage-block .col').first().find('.value').text().trim();
     const mileageText = $card.find('.price-mileage-block .col').eq(1).find('.value').text().trim();
-    const photoUrl = $card.find('.carousel-item.active img').attr('src')
-      || $card.find('.no-image img').attr('src') || null;
+
+    // Try src, then data-src, then srcset first entry
+    let rawPhotoUrl = $card.find('.carousel-item.active img').attr('src')
+      || $card.find('.carousel-item.active img').attr('data-src')
+      || null;
+    // Fallback: grab largest from srcset
+    if (!rawPhotoUrl || rawPhotoUrl.includes('comingsoon')) {
+      const srcset = $card.find('.carousel-item.active img').attr('srcset');
+      if (srcset) {
+        const entries = srcset.split(',').map(s => s.trim().split(/\s+/)[0]);
+        rawPhotoUrl = entries[entries.length - 1] || rawPhotoUrl;
+      }
+    }
+    // Fallback for no-image cards
+    if (!rawPhotoUrl) {
+      rawPhotoUrl = $card.find('.no-image img').attr('src') || null;
+    }
+    const photoUrl = cleanUrl(rawPhotoUrl);
+
     const detailHref = $card.find('.inventory-title-wrapper a').attr('href') || '';
 
     const parts = titleText.split(/\s+/);
@@ -54,7 +84,9 @@ function parseVehicleCards(html) {
     const mileage = parseInt(mileageText.replace(/[^0-9]/g, '')) || null;
 
     const externalId = detailHref.split('/').pop() || uuidv4();
-    const detailUrl = detailHref.startsWith('http') ? detailHref : DEALER_BASE + detailHref;
+    // Clean detail URL too — strip Wayback prefix, ensure absolute
+    let detailUrl = cleanUrl(detailHref) || detailHref;
+    if (detailUrl && !detailUrl.startsWith('http')) detailUrl = DEALER_BASE + detailUrl;
 
     if (year || make) {
       vehicles.push({ year, make, model, trim: trim || null, price, mileage, photoUrl, detailUrl, externalId });
