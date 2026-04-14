@@ -5,6 +5,14 @@ function fmtPhone(p) {
   const n = d.length === 11 && d[0] === '1' ? d.slice(1) : d;
   return n.length === 10 ? `(${n.slice(0,3)}) ${n.slice(3,6)}-${n.slice(6)}` : p;
 }
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if (isLight) document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', 'light');
+  localStorage.setItem('theme', isLight ? 'dark' : 'light');
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+}
 let token = localStorage.getItem('token');
 let currentUser = null;
 let vehicles = [];
@@ -16,6 +24,9 @@ let inviteToken = null;
 
 // ---- Init ----
 window.addEventListener('DOMContentLoaded', () => {
+  // Theme toggle icon
+  const themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) themeBtn.textContent = (localStorage.getItem('theme') || 'dark') === 'light' ? '☀️' : '🌙';
   // Register SW
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {});
