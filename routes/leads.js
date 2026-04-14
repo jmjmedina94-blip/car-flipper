@@ -34,12 +34,14 @@ async function logActivity(leadId, userId, type, description) {
 router.get('/', async (req, res) => {
   try {
     const { status, assigned_to, search, date_from, date_to } = req.query;
-    let sql = `SELECT l.*, 
+    let sql = `SELECT l.*,
       u.first_name || ' ' || u.last_name as assigned_name,
       (SELECT COUNT(*) FROM lead_notes WHERE lead_id = l.id) as note_count,
-      (SELECT created_at FROM lead_activities WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1) as last_activity
+      (SELECT created_at FROM lead_activities WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1) as last_activity,
+      lv.vehicle_year as lv_year, lv.vehicle_make as lv_make, lv.vehicle_model as lv_model
       FROM leads l
       LEFT JOIN users u ON l.assigned_to = u.id
+      LEFT JOIN lead_vehicles lv ON lv.id = (SELECT id FROM lead_vehicles WHERE lead_id = l.id ORDER BY created_at DESC LIMIT 1)
       WHERE l.org_id = $1`;
     const params = [req.user.orgId];
     let i = 2;
@@ -70,6 +72,39 @@ router.post('/', async (req, res) => {
     const { name, phone, email, source, status, assigned_to, vehicle_year, vehicle_make, vehicle_model,
       vehicle_trim, vehicle_vin, vehicle_stock_number, lead_date, notes_summary } = req.body;
     if (!name) return res.status(400).json({ error: 'Name required' });
+
+    // Dedup: check for existing lead with same phone or email
+    let existingId = null;
+    if (phone || email) {
+      const conditions = [];
+      const params = [req.user.orgId];
+      let pi = 2;
+      if (phone) { conditions.push(`l.phone = $${pi++}`); params.push(phone); }
+      if (email) { conditions.push(`l.email = $${pi++}`); params.push(email); }
+      const dupSql = `SELECT l.id FROM leads l WHERE l.org_id = $1 AND (${conditions.join(' OR ')}) LIMIT 1`;
+      const dup = await db.query(db.isPg ? dupSql : dupSql.replace(/ILIKE/g, 'LIKE'), params);
+      if (dup.rows.length) existingId = dup.rows[0].id;
+    }
+
+    if (existingId) {
+      // Update contact info with latest data
+      const nowExpr = db.isPg ? 'NOW()' : "datetime('now')";
+      await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), updated_at = ${nowExpr} WHERE id = $4`,
+        [name, phone||null, email||null, existingId]);
+      // Add vehicle of interest
+      if (vehicle_make || vehicle_model || vehicle_vin) {
+        await db.query(
+          `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [uuidv4(), existingId, vehicle_year||null, vehicle_make||null, vehicle_model||null,
+           vehicle_trim||null, vehicle_vin||null, vehicle_stock_number||null, null]
+        );
+      }
+      await logActivity(existingId, req.user.userId, 'note', `New inquiry merged — ${[vehicle_year, vehicle_make, vehicle_model].filter(Boolean).join(' ') || 'no vehicle info'}`);
+      const r = await db.query('SELECT * FROM leads WHERE id = $1', [existingId]);
+      return res.status(200).json(r.rows[0]);
+    }
+
     const id = uuidv4();
     await db.query(
       `INSERT INTO leads (id, org_id, name, phone, email, source, status, assigned_to, vehicle_year, vehicle_make,
@@ -79,6 +114,15 @@ router.post('/', async (req, res) => {
        assigned_to||null, vehicle_year||null, vehicle_make||null, vehicle_model||null,
        vehicle_trim||null, vehicle_vin||null, vehicle_stock_number||null, lead_date||null, notes_summary||null]
     );
+    // Also insert into lead_vehicles
+    if (vehicle_make || vehicle_model || vehicle_vin) {
+      await db.query(
+        `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [uuidv4(), id, vehicle_year||null, vehicle_make||null, vehicle_model||null,
+         vehicle_trim||null, vehicle_vin||null, vehicle_stock_number||null]
+      );
+    }
     await logActivity(id, req.user.userId, 'note', `Lead created`);
     const r = await db.query('SELECT * FROM leads WHERE id = $1', [id]);
     res.status(201).json(r.rows[0]);
@@ -93,17 +137,19 @@ router.get('/:id', async (req, res) => {
        FROM leads l LEFT JOIN users u ON l.assigned_to = u.id 
        WHERE l.id = $1 AND l.org_id = $2`, [req.params.id, req.user.orgId]);
     if (!lr.rows.length) return res.status(404).json({ error: 'Not found' });
-    const [notes, attachments, activities] = await Promise.all([
-      db.query(`SELECT ln.*, u.first_name || ' ' || u.last_name as author_name 
-                FROM lead_notes ln LEFT JOIN users u ON ln.user_id = u.id 
+    const [vehicles, notes, attachments, activities] = await Promise.all([
+      db.query('SELECT * FROM lead_vehicles WHERE lead_id = $1 ORDER BY created_at DESC', [req.params.id]),
+      db.query(`SELECT ln.*, u.first_name || ' ' || u.last_name as author_name
+                FROM lead_notes ln LEFT JOIN users u ON ln.user_id = u.id
                 WHERE ln.lead_id = $1 ORDER BY ln.created_at ASC`, [req.params.id]),
       db.query('SELECT * FROM lead_attachments WHERE lead_id = $1 ORDER BY created_at ASC', [req.params.id]),
-      db.query(`SELECT la.*, u.first_name || ' ' || u.last_name as user_name 
-                FROM lead_activities la LEFT JOIN users u ON la.user_id = u.id 
+      db.query(`SELECT la.*, u.first_name || ' ' || u.last_name as user_name
+                FROM lead_activities la LEFT JOIN users u ON la.user_id = u.id
                 WHERE la.lead_id = $1 ORDER BY la.created_at DESC`, [req.params.id]),
     ]);
     res.json({
       ...lr.rows[0],
+      vehicles: vehicles.rows,
       notes: notes.rows,
       attachments: attachments.rows.map(a => ({
         ...a, url: `/uploads/leads/${req.params.id}/${a.filename}`
@@ -165,6 +211,33 @@ router.delete('/:id', async (req, res) => {
     const lr = await db.query('SELECT id FROM leads WHERE id = $1 AND org_id = $2', [req.params.id, req.user.orgId]);
     if (!lr.rows.length) return res.status(404).json({ error: 'Not found' });
     await db.query('DELETE FROM leads WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/leads/:id/vehicles
+router.post('/:id/vehicles', async (req, res) => {
+  try {
+    const { vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number } = req.body;
+    if (!vehicle_make && !vehicle_model && !vehicle_vin) return res.status(400).json({ error: 'Vehicle make, model, or VIN required' });
+    const id = uuidv4();
+    await db.query(
+      `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [id, req.params.id, vehicle_year||null, vehicle_make||null, vehicle_model||null,
+       vehicle_trim||null, vehicle_vin||null, vehicle_stock_number||null]
+    );
+    await logActivity(req.params.id, req.user.userId, 'note',
+      `Vehicle added: ${[vehicle_year, vehicle_make, vehicle_model].filter(Boolean).join(' ')}`);
+    const r = await db.query('SELECT * FROM lead_vehicles WHERE id = $1', [id]);
+    res.status(201).json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/leads/:id/vehicles/:vehicleId
+router.delete('/:id/vehicles/:vehicleId', async (req, res) => {
+  try {
+    await db.query('DELETE FROM lead_vehicles WHERE id = $1 AND lead_id = $2', [req.params.vehicleId, req.params.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

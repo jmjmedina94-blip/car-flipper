@@ -104,6 +104,18 @@ if (DATABASE_URL) {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS lead_vehicles (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      vehicle_year INTEGER,
+      vehicle_make TEXT,
+      vehicle_model TEXT,
+      vehicle_trim TEXT,
+      vehicle_vin TEXT,
+      vehicle_stock_number TEXT,
+      listed_price TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS lead_notes (
       id TEXT PRIMARY KEY,
       lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -147,6 +159,14 @@ if (DATABASE_URL) {
     `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ`,
     `ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at TIMESTAMPTZ`,
     `UPDATE vehicles SET inventory_type = 'street_cars' WHERE inventory_type = 'ga_motors'`,
+    `CREATE TABLE IF NOT EXISTS lead_vehicles (
+      id TEXT PRIMARY KEY, lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      vehicle_year INTEGER, vehicle_make TEXT, vehicle_model TEXT, vehicle_trim TEXT,
+      vehicle_vin TEXT, vehicle_stock_number TEXT, listed_price TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW())`,
+    `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price, created_at)
+     SELECT gen_random_uuid()::text, id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price, created_at
+     FROM leads WHERE vehicle_make IS NOT NULL AND id NOT IN (SELECT lead_id FROM lead_vehicles)`,
   ];
   for (const m of migrations) pool.query(m).catch(() => {});
 
@@ -264,6 +284,18 @@ if (DATABASE_URL) {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS lead_vehicles (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+      vehicle_year INTEGER,
+      vehicle_make TEXT,
+      vehicle_model TEXT,
+      vehicle_trim TEXT,
+      vehicle_vin TEXT,
+      vehicle_stock_number TEXT,
+      listed_price TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS lead_notes (
       id TEXT PRIMARY KEY,
       lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
@@ -296,6 +328,22 @@ if (DATABASE_URL) {
     `ALTER TABLE leads ADD COLUMN last_contacted_at TEXT`,
   ];
   for (const m of sqliteMigrations) { try { sqlite.exec(m); } catch (e) {} }
+
+  // Migrate existing vehicle data into lead_vehicles
+  try {
+    const { v4: genuuid } = require('uuid');
+    const existing = sqlite.prepare(
+      `SELECT id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price, created_at
+       FROM leads WHERE vehicle_make IS NOT NULL AND id NOT IN (SELECT lead_id FROM lead_vehicles)`
+    ).all();
+    const ins = sqlite.prepare(
+      `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    for (const r of existing) {
+      ins.run(genuuid(), r.id, r.vehicle_year, r.vehicle_make, r.vehicle_model, r.vehicle_trim, r.vehicle_vin, r.vehicle_stock_number, r.listed_price, r.created_at);
+    }
+  } catch (e) { /* table may not exist yet on first run — OK */ }
 
   db = sqlite;
   db.isPg = false;

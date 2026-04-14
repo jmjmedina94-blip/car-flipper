@@ -981,7 +981,7 @@ function buildPagination(current, totalPages, totalItems) {
 }
 
 function leadRowHTML(l) {
-  const veh = [l.vehicle_year, l.vehicle_make, l.vehicle_model].filter(Boolean).join(' ') || '—';
+  const veh = [l.lv_year||l.vehicle_year, l.lv_make||l.vehicle_make, l.lv_model||l.vehicle_model].filter(Boolean).join(' ') || '—';
   return `<div class="lead-row" onclick="openLead('${l.id}')">
     <div style="flex:1">
       <div class="lead-name">${esc(l.name)}</div>
@@ -1037,13 +1037,8 @@ async function loadLeadDetail(id) {
     document.getElementById('ld-source').textContent = lead.source || '—';
     document.getElementById('ld-lead-date').textContent = lead.lead_date || '—';
 
-    // Vehicle of interest
-    document.getElementById('voi-year').value = lead.vehicle_year || '';
-    document.getElementById('voi-make').value = lead.vehicle_make || '';
-    document.getElementById('voi-model').value = lead.vehicle_model || '';
-    document.getElementById('voi-trim').value = lead.vehicle_trim || '';
-    document.getElementById('voi-vin').value = lead.vehicle_vin || '';
-    document.getElementById('voi-stock').value = lead.vehicle_stock_number || '';
+    // Vehicles of interest
+    renderLeadVehicles(lead.vehicles || []);
 
     // Notes
     renderLeadNotes(lead.notes || []);
@@ -1061,10 +1056,31 @@ async function patchLead(field, value) {
   } catch (e) { showToast('Error updating lead'); }
 }
 
+function renderLeadVehicles(vehicles) {
+  const el = document.getElementById('lead-vehicles-list');
+  if (!vehicles.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No vehicles yet</div>'; return; }
+  el.innerHTML = vehicles.map(v => {
+    const title = [v.vehicle_year, v.vehicle_make, v.vehicle_model].filter(Boolean).join(' ') || 'Unknown';
+    const details = [v.vehicle_trim, v.vehicle_vin ? `VIN: ${v.vehicle_vin}` : null, v.vehicle_stock_number ? `Stock: ${v.vehicle_stock_number}` : null, v.listed_price].filter(Boolean).join(' · ');
+    return `<div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:14px;font-weight:600">${esc(title)}</div>
+        ${details ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${esc(details)}</div>` : ''}
+      </div>
+      <button onclick="deleteLeadVehicle('${v.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleAddVehicle() {
+  const form = document.getElementById('add-vehicle-form');
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+
 async function saveVehicleOfInterest() {
   try {
-    await apiFetch('/api/leads/' + currentLeadId, {
-      method: 'PATCH', body: JSON.stringify({
+    await apiFetch(`/api/leads/${currentLeadId}/vehicles`, {
+      method: 'POST', body: JSON.stringify({
         vehicle_year: parseInt(document.getElementById('voi-year').value) || null,
         vehicle_make: document.getElementById('voi-make').value || null,
         vehicle_model: document.getElementById('voi-model').value || null,
@@ -1073,8 +1089,20 @@ async function saveVehicleOfInterest() {
         vehicle_stock_number: document.getElementById('voi-stock').value || null,
       })
     });
-    showToast('Vehicle info saved');
-  } catch (e) { showToast('Error saving'); }
+    ['voi-year','voi-make','voi-model','voi-trim','voi-vin','voi-stock'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('add-vehicle-form').style.display = 'none';
+    const lead = await apiFetch('/api/leads/' + currentLeadId);
+    renderLeadVehicles(lead.vehicles || []);
+    showToast('Vehicle added');
+  } catch (e) { showToast('Error saving vehicle'); }
+}
+
+async function deleteLeadVehicle(vehicleId) {
+  try {
+    await apiFetch(`/api/leads/${currentLeadId}/vehicles/${vehicleId}`, { method: 'DELETE' });
+    const lead = await apiFetch('/api/leads/' + currentLeadId);
+    renderLeadVehicles(lead.vehicles || []);
+  } catch (e) { showToast('Error removing vehicle'); }
 }
 
 async function deleteCurrentLead() {

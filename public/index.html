@@ -547,18 +547,27 @@
         <div><span style="color:var(--muted)">Lead Date: </span><span id="ld-lead-date"></span></div>
       </div>
     </div>
-    <!-- Vehicle of Interest -->
+    <!-- Vehicles of Interest -->
     <div class="detail-section">
-      <h3>Vehicle of Interest</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="form-group"><label>Year</label><input type="number" id="voi-year" placeholder="2020"></div>
-        <div class="form-group"><label>Make</label><input type="text" id="voi-make" placeholder="Toyota"></div>
-        <div class="form-group"><label>Model</label><input type="text" id="voi-model" placeholder="Camry"></div>
-        <div class="form-group"><label>Trim</label><input type="text" id="voi-trim"></div>
-        <div class="form-group"><label>VIN</label><input type="text" id="voi-vin"></div>
-        <div class="form-group"><label>Stock #</label><input type="text" id="voi-stock"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 style="margin:0">Vehicles of Interest</h3>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAddVehicle()">+ Add Vehicle</button>
       </div>
-      <div style="text-align:right"><button class="btn btn-primary btn-sm" onclick="saveVehicleOfInterest()">Save Vehicle Info</button></div>
+      <div id="lead-vehicles-list"></div>
+      <div id="add-vehicle-form" style="display:none;margin-top:8px;padding:12px;background:var(--card2);border-radius:10px;border:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="form-group"><label>Year</label><input type="number" id="voi-year" placeholder="2020"></div>
+          <div class="form-group"><label>Make</label><input type="text" id="voi-make" placeholder="Toyota"></div>
+          <div class="form-group"><label>Model</label><input type="text" id="voi-model" placeholder="Camry"></div>
+          <div class="form-group"><label>Trim</label><input type="text" id="voi-trim"></div>
+          <div class="form-group"><label>VIN</label><input type="text" id="voi-vin"></div>
+          <div class="form-group"><label>Stock #</label><input type="text" id="voi-stock"></div>
+        </div>
+        <div style="text-align:right;margin-top:4px">
+          <button class="btn btn-ghost btn-sm" onclick="toggleAddVehicle()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveVehicleOfInterest()">Save Vehicle</button>
+        </div>
+      </div>
     </div>
     <!-- Detail Tabs -->
     <div class="detail-tabs">

@@ -164,6 +164,43 @@ function parseCarGurusHtml(html) {
 }
 
 async function createCarGurusLead(parsed, orgId) {
+  // Dedup: check for existing lead with same phone or email
+  let existingId = null;
+  if (parsed.phone || parsed.email) {
+    const conditions = [];
+    const params = [orgId];
+    let pi = 2;
+    if (parsed.phone) { conditions.push(`phone = $${pi++}`); params.push(parsed.phone); }
+    if (parsed.email) { conditions.push(`email = $${pi++}`); params.push(parsed.email); }
+    const dupSql = `SELECT id FROM leads WHERE org_id = $1 AND (${conditions.join(' OR ')}) LIMIT 1`;
+    const dup = await db.query(dupSql, params);
+    if (dup.rows.length) existingId = dup.rows[0].id;
+  }
+
+  if (existingId) {
+    // Update contact info with latest
+    const nowExpr = db.isPg ? 'NOW()' : "datetime('now')";
+    await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), updated_at = ${nowExpr} WHERE id = $4`,
+      [parsed.name || 'Unknown', parsed.phone, parsed.email, existingId]);
+    // Add vehicle of interest
+    if (parsed.vehicle_make || parsed.vehicle_model || parsed.vehicle_vin) {
+      await db.query(
+        `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [uuidv4(), existingId, parsed.vehicle_year, parsed.vehicle_make, parsed.vehicle_model,
+         parsed.vehicle_trim, parsed.vehicle_vin, parsed.vehicle_stock_number, parsed.listed_price]
+      );
+    }
+    if (parsed.comments) {
+      await db.query('INSERT INTO lead_notes (id, lead_id, user_id, content) VALUES ($1,$2,NULL,$3)',
+        [uuidv4(), existingId, `[CarGurus Auto-Import] Customer comment: ${parsed.comments}`]);
+    }
+    const veh = [parsed.vehicle_year, parsed.vehicle_make, parsed.vehicle_model].filter(Boolean).join(' ') || 'no vehicle info';
+    await db.query('INSERT INTO lead_activities (id, lead_id, user_id, activity_type, description) VALUES ($1,$2,NULL,$3,$4)',
+      [uuidv4(), existingId, 'note', `New CarGurus inquiry merged — ${veh}`]);
+    return existingId;
+  }
+
   const id = uuidv4();
 
   await db.query(
@@ -176,6 +213,16 @@ async function createCarGurusLead(parsed, orgId) {
      parsed.vehicle_vin, parsed.vehicle_stock_number, parsed.lead_date, parsed.listed_price,
      parsed.cargurus_transaction_id, parsed.cargurus_listing_url]
   );
+
+  // Also insert into lead_vehicles
+  if (parsed.vehicle_make || parsed.vehicle_model || parsed.vehicle_vin) {
+    await db.query(
+      `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [uuidv4(), id, parsed.vehicle_year, parsed.vehicle_make, parsed.vehicle_model,
+       parsed.vehicle_trim, parsed.vehicle_vin, parsed.vehicle_stock_number, parsed.listed_price]
+    );
+  }
 
   // First note from comments
   if (parsed.comments) {
@@ -306,50 +353,71 @@ router.post('/csv', authenticate, upload.single('csv'), async (req, res) => {
         const email = row.email?.trim() || null;
         const vin = row.vehicle_vin?.trim() || null;
 
-        // Deduplication: phone + email + vin
-        if (phone || email || vin) {
-          const dupCheck = await db.query(
-            `SELECT id FROM leads WHERE org_id = $1 AND (
-              ($2::text IS NOT NULL AND phone = $2) OR
-              ($3::text IS NOT NULL AND email = $3) OR
-              ($4::text IS NOT NULL AND vehicle_vin = $4)
-            )`,
-            [orgId, phone, email, vin]
-          );
-          if (dupCheck.rows.length) { skipped++; errors.push({ row: rowNum, reason: `Duplicate (matched existing lead by phone/email/VIN)` }); continue; }
-        }
-
-        const id = uuidv4();
         const yearRaw = parseInt(row.vehicle_year) || null;
         const leadDate = row.lead_date?.trim() || null;
         const source = row.source?.trim() || 'other';
+        const make = row.vehicle_make?.trim()||null;
+        const model = row.vehicle_model?.trim()||null;
+        const trim = row.vehicle_trim?.trim()||null;
+        const stockNum = row.stock_number?.trim()||null;
 
-        await db.query(
-          `INSERT INTO leads (id, org_id, name, phone, email, source, status, vehicle_year, vehicle_make,
-           vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, lead_date)
-           VALUES ($1,$2,$3,$4,$5,$6,'new',$7,$8,$9,$10,$11,$12,$13)`,
-          [id, orgId, name, phone, email, source, yearRaw,
-           row.vehicle_make?.trim()||null, row.vehicle_model?.trim()||null,
-           row.vehicle_trim?.trim()||null, vin,
-           row.stock_number?.trim()||null, leadDate]
-        );
-
-        // Comments → first note
-        const comments = row.comments?.trim();
-        if (comments) {
-          await db.query(
-            'INSERT INTO lead_notes (id, lead_id, user_id, content) VALUES ($1,$2,$3,$4)',
-            [uuidv4(), id, req.user.userId, comments]
-          );
+        // Dedup: check for existing lead with same phone or email
+        let existingId = null;
+        if (phone || email) {
+          const conditions = [];
+          const params = [orgId];
+          let pi = 2;
+          if (phone) { conditions.push(`phone = $${pi++}`); params.push(phone); }
+          if (email) { conditions.push(`email = $${pi++}`); params.push(email); }
+          const dupSql = `SELECT id FROM leads WHERE org_id = $1 AND (${conditions.join(' OR ')}) LIMIT 1`;
+          const dup = await db.query(dupSql, params);
+          if (dup.rows.length) existingId = dup.rows[0].id;
         }
 
-        // Activity
-        await db.query(
-          'INSERT INTO lead_activities (id, lead_id, user_id, activity_type, description) VALUES ($1,$2,$3,$4,$5)',
-          [uuidv4(), id, req.user.userId, 'note', 'Lead imported via CSV']
-        );
+        let leadId;
+        if (existingId) {
+          leadId = existingId;
+          // Update contact info, add vehicle
+          const nowExpr = db.isPg ? 'NOW()' : "datetime('now')";
+          await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), updated_at = ${nowExpr} WHERE id = $4`,
+            [name, phone, email, existingId]);
+          if (make || model || vin) {
+            await db.query(
+              `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [uuidv4(), existingId, yearRaw, make, model, trim, vin, stockNum]
+            );
+          }
+          await db.query('INSERT INTO lead_activities (id, lead_id, user_id, activity_type, description) VALUES ($1,$2,$3,$4,$5)',
+            [uuidv4(), existingId, req.user.userId, 'note', `CSV inquiry merged — ${[yearRaw, make, model].filter(Boolean).join(' ') || 'no vehicle info'}`]);
+          imported++;
+        } else {
+          leadId = uuidv4();
+          await db.query(
+            `INSERT INTO leads (id, org_id, name, phone, email, source, status, vehicle_year, vehicle_make,
+             vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, lead_date)
+             VALUES ($1,$2,$3,$4,$5,$6,'new',$7,$8,$9,$10,$11,$12,$13)`,
+            [leadId, orgId, name, phone, email, source, yearRaw, make, model, trim, vin, stockNum, leadDate]
+          );
+          if (make || model || vin) {
+            await db.query(
+              `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [uuidv4(), leadId, yearRaw, make, model, trim, vin, stockNum]
+            );
+          }
+          // Activity
+          await db.query('INSERT INTO lead_activities (id, lead_id, user_id, activity_type, description) VALUES ($1,$2,$3,$4,$5)',
+            [uuidv4(), leadId, req.user.userId, 'note', 'Lead imported via CSV']);
+          imported++;
+        }
 
-        imported++;
+        // Comments → note
+        const comments = row.comments?.trim();
+        if (comments) {
+          await db.query('INSERT INTO lead_notes (id, lead_id, user_id, content) VALUES ($1,$2,$3,$4)',
+            [uuidv4(), leadId, req.user.userId, comments]);
+        }
       } catch (e) {
         errors.push({ row: rowNum, reason: e.message });
         skipped++;
