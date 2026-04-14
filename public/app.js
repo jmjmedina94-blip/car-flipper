@@ -1195,12 +1195,21 @@ function renderLeadVehicles(vehicles) {
   el.innerHTML = vehicles.map(v => {
     const title = [v.vehicle_year, v.vehicle_make, v.vehicle_model].filter(Boolean).join(' ') || 'Unknown';
     const details = [v.vehicle_trim, v.vehicle_vin ? `VIN: ${v.vehicle_vin}` : null, v.vehicle_stock_number ? `Stock: ${v.vehicle_stock_number}` : null, v.listed_price].filter(Boolean).join(' · ');
-    return `<div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <div>
+    const m = v.dealer_match;
+    const photo = m?.photo_url
+      ? `<img src="${esc(m.photo_url)}" alt="" style="width:80px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`
+      : '';
+    const dealerInfo = m
+      ? `<div style="font-size:12px;color:var(--green);margin-top:4px">In Stock${m.price ? ' · $' + m.price.toLocaleString() : ''}${m.mileage ? ' · ' + m.mileage.toLocaleString() + ' mi' : ''}</div>`
+      : '';
+    return `<div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);display:flex;gap:12px;align-items:center">
+      ${photo}
+      <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600">${esc(title)}</div>
         ${details ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${esc(details)}</div>` : ''}
+        ${dealerInfo}
       </div>
-      <button onclick="deleteLeadVehicle('${v.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer">Remove</button>
+      <button onclick="deleteLeadVehicle('${v.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;flex-shrink:0">Remove</button>
     </div>`;
   }).join('');
 }
