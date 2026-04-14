@@ -502,17 +502,28 @@ function renderPhotos(photos, vehicleId) {
     </div>`).join('');
 }
 
-// Compress image to max 1600px wide, quality 0.85 — HEIC/HEIF sent raw (server converts)
-function compressImage(file) {
-  return new Promise(resolve => {
-    const name = file.name.toLowerCase();
-    // HEIC/HEIF can't be decoded by browser canvas — send raw for server-side conversion
-    if (name.endsWith('.heic') || name.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif') {
-      resolve(file); return;
+// Compress image to max 1600px wide, quality 0.85
+// HEIC/HEIF converted to JPEG client-side via heic2any before canvas compression
+async function compressImage(file) {
+  let imageFile = file;
+  const name = file.name.toLowerCase();
+
+  // Convert HEIC/HEIF to JPEG blob using heic2any
+  if (name.endsWith('.heic') || name.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif') {
+    try {
+      const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.88 });
+      imageFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+    } catch (e) {
+      console.error('HEIC conversion failed:', e);
+      return file; // send raw as fallback
     }
-    if (!file.type.startsWith('image/')) { resolve(file); return; }
+  }
+
+  if (!imageFile.type.startsWith('image/')) return imageFile;
+
+  return new Promise(resolve => {
     const img = new Image();
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(imageFile);
     img.onload = () => {
       URL.revokeObjectURL(url);
       const MAX = 1600;
@@ -523,11 +534,11 @@ function compressImage(file) {
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       canvas.toBlob(blob => {
-        if (blob) resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-        else resolve(file);
+        if (blob) resolve(new File([blob], imageFile.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        else resolve(imageFile);
       }, 'image/jpeg', 0.85);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(imageFile); };
     img.src = url;
   });
 }

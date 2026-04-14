@@ -248,8 +248,10 @@ router.post('/:id/photos', upload.array('photos', 20), async (req, res) => {
     for (const file of req.files) {
       // Convert HEIC/HEIF and other non-web formats to JPEG
       const originalPath = path.join(UPLOADS_ROOT, 'vehicles', req.params.id, file.filename);
+      console.log('[PHOTO UPLOAD] multer saved to:', originalPath, '| exists:', fs.existsSync(originalPath), '| size:', file.size, '| mime:', file.mimetype);
       const convertedPath = await toJpeg(originalPath);
       const finalFilename = path.basename(convertedPath);
+      console.log('[PHOTO UPLOAD] after toJpeg:', convertedPath, '| exists:', fs.existsSync(convertedPath), '| served at: /uploads/vehicles/' + req.params.id + '/' + finalFilename);
       const id = uuidv4();
       await db.query('INSERT INTO photos (id, vehicle_id, filename, original_name) VALUES ($1,$2,$3,$4)', [id, req.params.id, finalFilename, file.originalname]);
       inserted.push({ id, filename: finalFilename, url: `/uploads/vehicles/${req.params.id}/${finalFilename}` });
