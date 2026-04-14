@@ -59,9 +59,12 @@ async function initApp() {
     document.getElementById('user-avatar').textContent = initials || '?';
     applyNavVisibility(me);
     if (canViewDealerInventory()) await loadVehicles('ga_motors'); // pre-load GA Motors (skip if no access)
-    renderDashboard();
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-dashboard').classList.add('active');
+    // Navigate to hash route or default to dashboard
+    if (location.hash && location.hash !== '#') {
+      navigateFromHash();
+    } else {
+      showPage('dashboard');
+    }
   } catch (e) {
     token = null; localStorage.removeItem('token');
     document.getElementById('auth-screen').style.display = 'flex';
@@ -193,7 +196,9 @@ function closeMobileMenu() {
 }
 
 // ---- Navigation ----
-function showPage(name) {
+let _skipHashUpdate = false;
+
+function showPage(name, skipHash) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const pageEl = document.getElementById('page-' + name);
@@ -211,7 +216,53 @@ function showPage(name) {
   if (name === 'dashboard') loadVehicles('ga_motors').then(renderDashboard);
   if (name === 'team') loadTeam();
   if (name === 'leads') { loadLeadVehicleFilter(); loadLeads().then(() => switchLeadsView(leadsView)); }
+  // Update URL hash
+  if (!skipHash) updateHash(name);
 }
+
+// ---- Hash-based routing ----
+const PAGE_HASH_MAP = { dashboard:'dashboard', leads:'leads', ga_motors:'ga-motors', street_cars:'street-cars', team:'team', detail:'vehicle', 'lead-detail':'lead' };
+const HASH_PAGE_MAP = Object.fromEntries(Object.entries(PAGE_HASH_MAP).map(([k,v]) => [v,k]));
+
+function updateHash(page) {
+  let hash = PAGE_HASH_MAP[page] || page;
+  if (page === 'detail' && currentVehicleId) hash = `vehicle/${currentVehicleId}`;
+  else if (page === 'lead-detail' && currentLeadId) hash = `lead/${currentLeadId}`;
+  else if (page === 'leads') {
+    hash = 'leads';
+    if (leadsView === 'list') hash += '/list';
+    else if (selectedCalDay) hash += '/cal/' + selectedCalDay;
+  }
+  _skipHashUpdate = true;
+  location.hash = hash;
+  _skipHashUpdate = false;
+}
+
+function navigateFromHash() {
+  const hash = location.hash.replace(/^#\/?/, '');
+  if (!hash) { showPage('dashboard', true); return; }
+  const parts = hash.split('/');
+  const base = parts[0];
+
+  if (base === 'vehicle' && parts[1]) {
+    openVehicle(parts[1], true);
+  } else if (base === 'lead' && parts[1]) {
+    openLead(parts[1], true);
+  } else if (base === 'leads') {
+    if (parts[1] === 'list') { leadsView = 'list'; }
+    else if (parts[1] === 'cal' && parts[2]) { leadsView = 'calendar'; selectedCalDay = parts[2]; }
+    else { leadsView = 'calendar'; }
+    showPage('leads', true);
+  } else {
+    const page = HASH_PAGE_MAP[base];
+    if (page) showPage(page, true);
+    else showPage('dashboard', true);
+  }
+}
+
+window.addEventListener('hashchange', () => {
+  if (!_skipHashUpdate) navigateFromHash();
+});
 
 // ---- Vehicles ----
 let vehiclesByType = {}; // cache by inventory_type
@@ -360,9 +411,9 @@ function renderDealerInventory(vehicles) {
 }
 
 // ---- Vehicle Detail ----
-async function openVehicle(id) {
+async function openVehicle(id, skipHash) {
   currentVehicleId = id;
-  showPage('detail');
+  showPage('detail', skipHash);
   await loadVehicleDetail(id);
 }
 
@@ -1033,6 +1084,7 @@ function switchLeadsView(view) {
   positionFilterBar(view);
   if (view === 'calendar') renderCalendar();
   else renderLeadsList();
+  updateHash('leads');
 }
 
 function positionFilterBar(view) {
@@ -1112,6 +1164,7 @@ function selectCalDay(dateStr) {
   selectedCalDay = selectedCalDay === dateStr ? null : dateStr;
   calDayPage = 1;
   renderCalendar();
+  updateHash('leads');
 }
 
 function renderCalDayLeads(dateStr, leads) {
@@ -1212,9 +1265,9 @@ function leadRowHTML(l) {
 
 // ---- Lead Detail ----
 
-async function openLead(id) {
+async function openLead(id, skipHash) {
   currentLeadId = id;
-  showPage('lead-detail');
+  showPage('lead-detail', skipHash);
   await loadLeadDetail(id);
 }
 
