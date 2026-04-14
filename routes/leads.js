@@ -48,7 +48,7 @@ router.get('/vehicles', async (req, res) => {
 // GET /api/leads
 router.get('/', async (req, res) => {
   try {
-    const { status, assigned_to, search, date_from, date_to, vehicle } = req.query;
+    const { status, assigned_to, search, date_from, date_to, vehicle_year, vehicle_make, vehicle_model } = req.query;
     let sql = `SELECT l.*,
       u.first_name || ' ' || u.last_name as assigned_name,
       (SELECT COUNT(*) FROM lead_notes WHERE lead_id = l.id) as note_count,
@@ -73,9 +73,12 @@ router.get('/', async (req, res) => {
       sql += ` AND (l.name ILIKE $${i} OR l.phone ILIKE $${i} OR l.email ILIKE $${i})`;
       params.push(`%${search}%`); i++;
     }
-    if (vehicle) {
-      sql += ` AND l.id IN (SELECT lead_id FROM lead_vehicles WHERE vehicle_year || ' ' || vehicle_make || ' ' || vehicle_model = $${i++})`;
-      params.push(vehicle);
+    if (vehicle_year || vehicle_make || vehicle_model) {
+      let vSql = 'SELECT lead_id FROM lead_vehicles WHERE 1=1';
+      if (vehicle_year) { vSql += ` AND vehicle_year = $${i++}`; params.push(parseInt(vehicle_year)); }
+      if (vehicle_make) { vSql += ` AND vehicle_make = $${i++}`; params.push(vehicle_make); }
+      if (vehicle_model) { vSql += ` AND vehicle_model = $${i++}`; params.push(vehicle_model); }
+      sql += ` AND l.id IN (${vSql})`;
     }
     sql += ' ORDER BY l.created_at DESC';
     // SQLite doesn’t support ILIKE — use LIKE for compat

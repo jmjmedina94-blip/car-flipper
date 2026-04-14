@@ -937,15 +937,21 @@ const STATUS_ICONS = { call:'📞', text:'💬', email:'📧', note:'📝', stat
 
 // ---- Load & Render Leads ----
 
+let leadVehiclesData = []; // cached for cascading filters
+
 async function loadLeads() {
   try {
     const status = document.getElementById('leads-filter-status')?.value || '';
     const search = document.getElementById('leads-search')?.value || '';
-    const vehicle = document.getElementById('leads-filter-vehicle')?.value || '';
+    const year = document.getElementById('leads-filter-year')?.value || '';
+    const make = document.getElementById('leads-filter-make')?.value || '';
+    const model = document.getElementById('leads-filter-model')?.value || '';
     let url = '/api/leads?';
     if (status) url += `status=${encodeURIComponent(status)}&`;
     if (search) url += `search=${encodeURIComponent(search)}&`;
-    if (vehicle) url += `vehicle=${encodeURIComponent(vehicle)}&`;
+    if (year) url += `vehicle_year=${encodeURIComponent(year)}&`;
+    if (make) url += `vehicle_make=${encodeURIComponent(make)}&`;
+    if (model) url += `vehicle_model=${encodeURIComponent(model)}&`;
     const result = await apiFetch(url);
     leadsData = Array.isArray(result) ? result : [];
     if (!Array.isArray(leadsData)) leadsData = [];
@@ -954,17 +960,50 @@ async function loadLeads() {
 
 async function loadLeadVehicleFilter() {
   try {
-    const vehicles = await apiFetch('/api/leads/vehicles');
-    const sel = document.getElementById('leads-filter-vehicle');
-    if (!sel) return;
-    const current = sel.value;
-    sel.innerHTML = '<option value="">All Vehicles</option>' +
-      vehicles.map(v => {
-        const label = [v.vehicle_year, v.vehicle_make, v.vehicle_model].filter(Boolean).join(' ');
-        return `<option value="${esc(label)}">${esc(label)}</option>`;
-      }).join('');
-    sel.value = current;
+    leadVehiclesData = await apiFetch('/api/leads/vehicles');
+    populateVehicleDropdowns();
   } catch (e) {}
+}
+
+function populateVehicleDropdowns() {
+  const yearSel = document.getElementById('leads-filter-year');
+  const makeSel = document.getElementById('leads-filter-make');
+  const modelSel = document.getElementById('leads-filter-model');
+  if (!yearSel || !makeSel || !modelSel) return;
+
+  const selYear = yearSel.value;
+  const selMake = makeSel.value;
+  const selModel = modelSel.value;
+
+  // Filter data based on current selections
+  let filtered = leadVehiclesData;
+  if (selYear) filtered = filtered.filter(v => String(v.vehicle_year) === selYear);
+  if (selMake) filtered = filtered.filter(v => v.vehicle_make === selMake);
+
+  // Years: always show all available years
+  const years = [...new Set(leadVehiclesData.map(v => v.vehicle_year).filter(Boolean))].sort((a, b) => b - a);
+  yearSel.innerHTML = '<option value="">Year</option>' + years.map(y => `<option value="${y}" ${String(y)===selYear?'selected':''}>${y}</option>`).join('');
+
+  // Makes: filter by selected year
+  let makesData = selYear ? leadVehiclesData.filter(v => String(v.vehicle_year) === selYear) : leadVehiclesData;
+  const makes = [...new Set(makesData.map(v => v.vehicle_make).filter(Boolean))].sort();
+  makeSel.innerHTML = '<option value="">Make</option>' + makes.map(m => `<option value="${esc(m)}" ${m===selMake?'selected':''}>${esc(m)}</option>`).join('');
+  if (selMake && !makes.includes(selMake)) makeSel.value = '';
+
+  // Models: filter by selected year + make
+  let modelsData = leadVehiclesData;
+  if (selYear) modelsData = modelsData.filter(v => String(v.vehicle_year) === selYear);
+  if (makeSel.value) modelsData = modelsData.filter(v => v.vehicle_make === makeSel.value);
+  const models = [...new Set(modelsData.map(v => v.vehicle_model).filter(Boolean))].sort();
+  modelSel.innerHTML = '<option value="">Model</option>' + models.map(m => `<option value="${esc(m)}" ${m===selModel?'selected':''}>${esc(m)}</option>`).join('');
+  if (selModel && !models.includes(selModel)) modelSel.value = '';
+}
+
+function onVehicleFilterChange(changed) {
+  // If year changed, reset make/model if they no longer apply
+  // If make changed, reset model if it no longer applies
+  populateVehicleDropdowns();
+  refreshLeads();
 }
 
 async function refreshLeads() {
