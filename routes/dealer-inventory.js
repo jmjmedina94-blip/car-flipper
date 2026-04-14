@@ -160,28 +160,33 @@ async function scrapeInventory() {
     { name: 'wayback', fn: fetchWayback },
   ];
 
+  const errors = [];
   for (const { name, fn } of strategies) {
     try {
       console.log(`Dealer scrape: trying ${name}...`);
       const vehicles = await fn();
       console.log(`Dealer scrape: ${name} succeeded — ${vehicles.length} vehicles`);
-      return vehicles;
+      return { vehicles, strategy: name, errors };
     } catch (e) {
-      console.warn(`Dealer scrape: ${name} failed — ${e.message}`);
+      const msg = `${name}: ${e.response?.status || ''} ${e.message}`.trim();
+      console.warn(`Dealer scrape: ${msg}`);
+      errors.push(msg);
     }
   }
 
-  throw new Error('All scraping strategies failed');
+  const err = new Error('All scraping strategies failed');
+  err.strategyErrors = errors;
+  throw err;
 }
 
 async function syncInventory() {
   const logId = uuidv4();
   try {
-    const vehicles = await scrapeInventory();
+    const result = await scrapeInventory();
 
     // Clear old inventory and insert fresh
     await db.query('DELETE FROM dealer_inventory');
-    for (const v of vehicles) {
+    for (const v of result.vehicles) {
       await db.query(
         `INSERT INTO dealer_inventory (id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, price, mileage, photo_url, detail_url, external_id, vin)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
@@ -191,17 +196,18 @@ async function syncInventory() {
 
     await db.query(
       `INSERT INTO dealer_sync_log (id, vehicle_count, status) VALUES ($1,$2,$3)`,
-      [logId, vehicles.length, 'success']
+      [logId, result.vehicles.length, 'success']
     );
-    console.log(`Dealer inventory synced: ${vehicles.length} vehicles`);
-    return { ok: true, count: vehicles.length };
+    console.log(`Dealer inventory synced: ${result.vehicles.length} vehicles via ${result.strategy}`);
+    return { ok: true, count: result.vehicles.length, strategy: result.strategy, attempts: result.errors };
   } catch (e) {
-    console.error('Dealer sync error:', e.message);
+    const details = e.strategyErrors || [e.message];
+    console.error('Dealer sync error:', details.join(' | '));
     await db.query(
       `INSERT INTO dealer_sync_log (id, vehicle_count, status, error) VALUES ($1,$2,$3,$4)`,
-      [logId, 0, 'error', e.message]
+      [logId, 0, 'error', details.join(' | ')]
     ).catch(() => {});
-    return { ok: false, error: e.message };
+    return { ok: false, error: e.message, details };
   }
 }
 
@@ -224,9 +230,9 @@ router.post('/sync', async (req, res) => {
     if (result.ok) {
       const vehicles = await db.query('SELECT * FROM dealer_inventory ORDER BY vehicle_year DESC, vehicle_make ASC');
       const lastSync = await db.query('SELECT synced_at, vehicle_count, status FROM dealer_sync_log ORDER BY synced_at DESC LIMIT 1');
-      res.json({ vehicles: vehicles.rows, lastSync: lastSync.rows[0] });
+      res.json({ vehicles: vehicles.rows, lastSync: lastSync.rows[0], strategy: result.strategy, attempts: result.attempts });
     } else {
-      res.status(500).json({ error: result.error });
+      res.status(500).json({ error: result.error, details: result.details });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

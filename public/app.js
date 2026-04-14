@@ -329,11 +329,24 @@ async function syncDealerInventory() {
   btn.disabled = true;
   btn.textContent = 'Syncing...';
   try {
-    const data = await apiFetch('/api/dealer-inventory/sync', { method: 'POST' });
-    renderDealerInventory(data.vehicles || []);
-    renderDealerSyncStatus(data.lastSync);
-    showToast(`Synced ${data.vehicles?.length || 0} vehicles`);
-  } catch (e) { showToast('Sync failed — site may be blocking requests'); }
+    const res = await fetch('/api/dealer-inventory/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      renderDealerInventory(data.vehicles || []);
+      renderDealerSyncStatus(data.lastSync);
+      showToast(`Synced ${data.vehicles?.length || 0} vehicles via ${data.strategy || 'unknown'}`);
+    } else {
+      const details = data.details ? data.details.join(' | ') : data.error || 'Unknown error';
+      showToast('Sync failed: ' + details);
+      console.error('Sync error details:', data);
+    }
+  } catch (e) {
+    showToast('Sync failed: network error');
+    console.error('Sync error:', e);
+  }
   btn.disabled = false;
   btn.textContent = 'Sync Inventory';
 }
