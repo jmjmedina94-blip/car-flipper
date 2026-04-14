@@ -226,6 +226,14 @@
     .detail-section { background: var(--card2); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); }
     .detail-section h3 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
 
+    /* Toggle Switch */
+    .toggle-switch { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 26px; transition: .3s; }
+    .toggle-slider:before { position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+    input:checked + .toggle-slider { background: var(--green); }
+    input:checked + .toggle-slider:before { transform: translateX(22px); }
+
     /* Spinner */
     .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -257,7 +265,6 @@
     </div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="showAuthTab('login')">Sign In</button>
-      <button class="auth-tab" onclick="showAuthTab('signup')">Create Account</button>
     </div>
     <!-- Login -->
     <div id="login-form">
@@ -268,17 +275,13 @@
       </form>
       <div id="login-error" class="error-msg"></div>
     </div>
-    <!-- Signup -->
+    <!-- Signup disabled -->
     <div id="signup-form" style="display:none">
-      <div class="form-group"><label>Dealership / Business Name</label><input type="text" id="su-org" placeholder="e.g. Medina Auto Group"></div>
-      <div class="form-row">
-        <div class="form-group"><label>First Name</label><input type="text" id="su-first" placeholder="Josh"></div>
-        <div class="form-group"><label>Last Name</label><input type="text" id="su-last" placeholder="Medina"></div>
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:14px">
+        <div style="font-size:32px;margin-bottom:12px">🔒</div>
+        <div style="color:var(--text);font-weight:600;margin-bottom:8px">Invitation Only</div>
+        Account creation is by invitation only.<br>Contact your administrator for access.
       </div>
-      <div class="form-group"><label>Email</label><input type="email" id="su-email" placeholder="you@example.com"></div>
-      <div class="form-group"><label>Password</label><input type="password" id="su-pass" placeholder="Min 6 characters"></div>
-      <button class="btn btn-primary" onclick="doSignup()" type="button" style="cursor:pointer;touch-action:manipulation">Create Account</button>
-      <div id="signup-error" class="error-msg"></div>
     </div>
     <!-- Accept Invite -->
     <div id="invite-form" style="display:none">
@@ -301,7 +304,8 @@
     <div class="topbar-nav" id="topbar-nav">
       <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
       <button class="nav-btn" onclick="showPage('leads')">Leads</button>
-      <button class="nav-btn" onclick="showPage('inventory')">Inventory</button>
+      <button class="nav-btn" id="nav-ga-motors" onclick="showPage('ga_motors')">GA Motors</button>
+      <button class="nav-btn" id="nav-street-cars" onclick="showPage('street_cars')">Street Cars</button>
       <button class="nav-btn" onclick="showPage('team')">Team</button>
     </div>
     <div class="topbar-user">
@@ -314,7 +318,8 @@
   <!-- Mobile nav drawer -->
   <div id="mobile-nav" style="display:none;background:var(--card);border-bottom:1px solid var(--border);padding:8px 12px;flex-direction:column;gap:4px;">
     <button class="nav-btn" style="text-align:left" onclick="showPage('dashboard');closeMobileMenu()">Dashboard</button>
-    <button class="nav-btn" style="text-align:left" onclick="showPage('inventory');closeMobileMenu()">Inventory</button>
+    <button class="nav-btn" id="mnav-ga-motors" style="text-align:left" onclick="showPage('ga_motors');closeMobileMenu()">GA Motors</button>
+    <button class="nav-btn" id="mnav-street-cars" style="text-align:left" onclick="showPage('street_cars');closeMobileMenu()">Street Cars</button>
     <button class="nav-btn" style="text-align:left" onclick="showPage('team');closeMobileMenu()">Team</button>
   </div>
 
@@ -334,23 +339,48 @@
   </div>
 
   <!-- Inventory -->
-  <div class="page" id="page-inventory">
+  <!-- GA Motors Inventory -->
+  <div class="page" id="page-ga_motors">
     <div class="page-header">
-      <div class="page-title">All Inventory</div>
-      <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Vehicle</button>
+      <div>
+        <div class="page-title">GA Motors</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Dealer Inventory</div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="add-ga-btn" onclick="openAddModal('ga_motors')">+ Add Vehicle</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-      <button class="btn btn-secondary btn-sm" onclick="filterStatus('all')">All</button>
-      <button class="btn btn-secondary btn-sm" onclick="filterStatus('active')">Active</button>
-      <button class="btn btn-secondary btn-sm" onclick="filterStatus('listed')">Listed</button>
-      <button class="btn btn-secondary btn-sm" onclick="filterStatus('sold')">Sold</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','all')">All</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','active')">Active</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','listed')">Listed</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','sold')">Sold</button>
     </div>
-    <div class="vehicle-grid" id="inv-vehicles"></div>
+    <div class="vehicle-grid" id="inv-ga-motors"></div>
   </div>
+
+  <!-- Street Cars Inventory -->
+  <div class="page" id="page-street_cars">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Street Cars</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Private Party Inventory</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openAddModal('street_cars')">+ Add Vehicle</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('street_cars','all')">All</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('street_cars','active')">Active</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('street_cars','listed')">Listed</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('street_cars','sold')">Sold</button>
+    </div>
+    <div class="vehicle-grid" id="inv-street-cars"></div>
+  </div>
+
+  <!-- Legacy inventory page redirect -->
+  <div class="page" id="page-inventory"></div>
 
   <!-- Vehicle Detail -->
   <div class="page" id="page-detail">
-    <button class="back-btn" onclick="showPage('inventory')">← Back to Inventory</button>
+    <button class="back-btn" onclick="showPage(currentVehicle?.inventory_type||'ga_motors')">← Back to Inventory</button>
     <div class="detail-header">
       <div class="detail-title-block">
         <div class="detail-title" id="det-title">—</div>
@@ -647,6 +677,46 @@
   </div>
 </div>
 
+<!-- Permission Edit Modal -->
+<div class="modal-overlay" id="perm-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Permissions</h2>
+      <button class="modal-close" onclick="closeModal('perm-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="perm-user-name" style="font-size:15px;font-weight:600;margin-bottom:16px"></div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card2);padding:14px 16px;border-radius:10px;border:1px solid var(--border)">
+          <div>
+            <div style="font-size:14px;font-weight:500">View All Leads</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">See all leads, not just assigned ones</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="perm-view-all-leads" onchange="updatePermission('can_view_all_leads', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card2);padding:14px 16px;border-radius:10px;border:1px solid var(--border)">
+          <div>
+            <div style="font-size:14px;font-weight:500">View GA Motors Inventory</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">Access dealer inventory tab</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="perm-view-dealer-inv" onchange="updatePermission('can_view_dealer_inventory', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)" id="perm-role-section"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('perm-modal')">Done</button>
+      <button class="btn btn-danger btn-sm" id="perm-remove-btn" onclick="removeUser()">Remove User</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add/Edit Vehicle Modal -->
 <div class="modal-overlay" id="vehicle-modal">
   <div class="modal">
@@ -681,6 +751,13 @@
           </select>
         </div>
       </div>
+      <div class="form-group">
+        <label>Inventory Category</label>
+        <select id="v-inventory-type">
+          <option value="ga_motors">🏪 GA Motors (Dealer)</option>
+          <option value="street_cars">🚗 Street Cars (Private Party)</option>
+        </select>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Sell Price ($)</label><input type="number" id="v-sell" placeholder="Leave blank if not sold"></div>
         <div class="form-group"><label>Sell Date</label><input type="date" id="v-sdate"></div>
@@ -706,6 +783,12 @@
         <div class="form-group"><label>Last Name</label><input type="text" id="invite-last" placeholder="Smith"></div>
       </div>
       <div class="form-group"><label>Email Address</label><input type="email" id="invite-email" placeholder="teammate@example.com"></div>
+      <div class="form-group"><label>Role</label>
+        <select id="invite-role">
+          <option value="bdc_rep">BDC Rep</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
       <div id="invite-result"></div>
     </div>
     <div class="modal-footer">

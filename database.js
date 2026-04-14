@@ -23,9 +23,13 @@ if (DATABASE_URL) {
       last_name TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL DEFAULT '',
-      role TEXT NOT NULL DEFAULT 'member',
+      role TEXT NOT NULL DEFAULT 'bdc_rep',
       invite_token TEXT,
       invite_accepted INTEGER NOT NULL DEFAULT 1,
+      invite_role TEXT DEFAULT 'bdc_rep',
+      invite_expires_at TIMESTAMPTZ,
+      can_view_all_leads INTEGER NOT NULL DEFAULT 0,
+      can_view_dealer_inventory INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS vehicles (
@@ -44,6 +48,10 @@ if (DATABASE_URL) {
       status TEXT DEFAULT 'active',
       kbb_value REAL,
       notes TEXT,
+      inventory_type TEXT NOT NULL DEFAULT 'ga_motors',
+      external_source TEXT,
+      external_id TEXT,
+      last_synced_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -123,12 +131,22 @@ if (DATABASE_URL) {
   `).then(() => console.log('PG schema ready')).catch(e => console.error('PG schema error:', e.message));
 
   // Migrations for existing PG DBs
-  pool.query(`
-    ALTER TABLE leads ADD COLUMN IF NOT EXISTS listed_price TEXT;
-    ALTER TABLE leads ADD COLUMN IF NOT EXISTS customer_zip TEXT;
-    ALTER TABLE leads ADD COLUMN IF NOT EXISTS cargurus_transaction_id TEXT UNIQUE;
-    ALTER TABLE leads ADD COLUMN IF NOT EXISTS cargurus_listing_url TEXT;
-  `).catch(() => {});
+  const migrations = [
+    `ALTER TABLE leads ADD COLUMN IF NOT EXISTS listed_price TEXT`,
+    `ALTER TABLE leads ADD COLUMN IF NOT EXISTS customer_zip TEXT`,
+    `ALTER TABLE leads ADD COLUMN IF NOT EXISTS cargurus_transaction_id TEXT`,
+    `ALTER TABLE leads ADD COLUMN IF NOT EXISTS cargurus_listing_url TEXT`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_role TEXT DEFAULT 'bdc_rep'`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_expires_at TIMESTAMPTZ`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_all_leads INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_dealer_inventory INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS inventory_type TEXT NOT NULL DEFAULT 'ga_motors'`,
+    `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS external_source TEXT`,
+    `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS external_id TEXT`,
+    `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ`,
+    `UPDATE vehicles SET inventory_type = 'street_cars' WHERE inventory_type = 'ga_motors'`,
+  ];
+  for (const m of migrations) pool.query(m).catch(() => {});
 
   // Wrap pool to look like better-sqlite3 interface
   db = {

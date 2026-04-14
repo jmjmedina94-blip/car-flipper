@@ -51,15 +51,19 @@ app.get('/api/debug/uploads', async (req, res) => {
   } catch (e) { res.json({ error: e.message }); }
 });
 
-// Auth routes (no middleware)
+// Auth routes (setup has no auth; others handled internally)
 app.use('/api/auth', require('./routes/auth'));
 
-// Protected routes
+// Protected routes — auth + attach live permissions from DB
 const auth = require('./middleware/auth');
-app.use('/api/vehicles', auth, require('./routes/vehicles'));
-app.use('/api/team', auth, require('./routes/team'));
+const { attachUserPermissions } = require('./middleware/roles');
+const db = require('./database');
+const withPerms = [auth, attachUserPermissions(db)];
+
+app.use('/api/vehicles', ...withPerms, require('./routes/vehicles'));
+app.use('/api/team', ...withPerms, require('./routes/team'));
 app.use('/api/leads/inbound', require('./routes/leads-inbound')); // No auth — SendGrid webhook (MUST be before /api/leads)
-app.use('/api/leads', auth, require('./routes/leads'));
+app.use('/api/leads', ...withPerms, require('./routes/leads'));
 
 // SPA fallback
 app.get('*', (req, res) => {

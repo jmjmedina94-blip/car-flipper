@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../database');
+const { isAdmin, isBdcRep, canViewAllLeads } = require('../middleware/roles');
 
 const UPLOADS_ROOT = process.env.UPLOADS_DIR || path.resolve(__dirname, '..', 'uploads');
 
@@ -42,6 +43,11 @@ router.get('/', async (req, res) => {
       WHERE l.org_id = $1`;
     const params = [req.user.orgId];
     let i = 2;
+    // BDC reps: only see their assigned leads + unassigned (unless can_view_all_leads is on)
+    if (isBdcRep(req) && !canViewAllLeads(req)) {
+      sql += ` AND (l.assigned_to = $${i++} OR l.assigned_to IS NULL)`;
+      params.push(req.user.userId);
+    }
     if (status) { sql += ` AND l.status = $${i++}`; params.push(status); }
     if (assigned_to) { sql += ` AND l.assigned_to = $${i++}`; params.push(assigned_to); }
     if (date_from) { sql += ` AND l.lead_date >= $${i++}`; params.push(date_from); }
@@ -148,8 +154,9 @@ router.patch('/:id', async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// DELETE /api/leads/:id
+// DELETE /api/leads/:id — admin/owner only
 router.delete('/:id', async (req, res) => {
+  if (isBdcRep(req)) return res.status(403).json({ error: 'BDC reps cannot delete leads' });
   try {
     const lr = await db.query('SELECT id FROM leads WHERE id = $1 AND org_id = $2', [req.params.id, req.user.orgId]);
     if (!lr.rows.length) return res.status(404).json({ error: 'Not found' });

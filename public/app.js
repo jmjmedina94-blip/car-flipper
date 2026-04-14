@@ -40,12 +40,9 @@ async function initApp() {
     document.getElementById('user-org').textContent = me.orgName || '';
     const initials = ((me.firstName || '')[0] || '').toUpperCase() + ((me.lastName || '')[0] || '').toUpperCase();
     document.getElementById('user-avatar').textContent = initials || '?';
-    // Show/hide invite button based on role
-    const inviteBtn = document.querySelector('#page-team .page-header button');
-    if (inviteBtn) inviteBtn.style.display = me.role === 'owner' ? '' : 'none';
-    await loadVehicles();
+    applyNavVisibility(me);
+    await loadVehicles('ga_motors'); // pre-load GA Motors
     renderDashboard();
-    // Show dashboard page
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-dashboard').classList.add('active');
   } catch (e) {
@@ -53,6 +50,35 @@ async function initApp() {
     document.getElementById('auth-screen').style.display = 'flex';
     document.getElementById('app-screen').style.display = 'none';
   }
+}
+
+function isAdmin() { return currentUser && ['owner','admin'].includes(currentUser.role); }
+function isBdcRep() { return currentUser && ['bdc_rep','member'].includes(currentUser.role); }
+function canViewAllLeads() { return isAdmin() || currentUser?.can_view_all_leads; }
+function canViewDealerInventory() { return isAdmin() || currentUser?.can_view_dealer_inventory; }
+
+function applyNavVisibility(me) {
+  const role = me?.role;
+  const canDealer = ['owner','admin'].includes(role) || me?.can_view_dealer_inventory;
+  const canStreet = ['owner','admin'].includes(role); // BDC reps never
+  const canTeam = ['owner','admin'].includes(role);
+
+  const setNav = (id, show) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? '' : 'none';
+  };
+  setNav('nav-ga-motors', canDealer);
+  setNav('nav-street-cars', canStreet);
+  setNav('mnav-ga-motors', canDealer);
+  setNav('mnav-street-cars', canStreet);
+
+  // Team nav — only admins/owners
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.textContent.trim() === 'Team') b.style.display = canTeam ? '' : 'none';
+  });
+
+  // Add vehicle buttons — only admins/owners
+  document.querySelectorAll('[id="add-ga-btn"]').forEach(b => b.style.display = canTeam ? '' : 'none');
 }
 
 // ---- API ----
@@ -100,15 +126,9 @@ async function doLogin() {
 }
 
 async function doSignup() {
-  const orgName = document.getElementById('su-org').value.trim();
-  const firstName = document.getElementById('su-first').value.trim();
-  const lastName = document.getElementById('su-last').value.trim();
-  const email = document.getElementById('su-email').value.trim();
-  const password = document.getElementById('su-pass').value;
-  document.getElementById('signup-error').textContent = '';
-  if (!orgName || !firstName || !lastName || !email || !password) {
-    document.getElementById('signup-error').textContent = 'All fields are required'; return;
-  }
+  // Signup is disabled — redirect to invite-only message
+  showAuthTab('signup');
+  return;
   try {
     const res = await apiFetch('/api/auth/signup', { method: 'POST', body: JSON.stringify({ orgName, firstName, lastName, email, password }) });
     if (!res) return;
@@ -157,22 +177,54 @@ function showPage(name) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const pageEl = document.getElementById('page-' + name);
   if (pageEl) pageEl.classList.add('active');
-  // Highlight matching nav button
   document.querySelectorAll('#topbar-nav .nav-btn').forEach(b => {
-    if (b.textContent.toLowerCase().includes(name === 'detail' ? 'inventory' : name)) b.classList.add('active');
+    const txt = b.textContent.toLowerCase();
+    if (name === 'ga_motors' && txt.includes('ga motors')) b.classList.add('active');
+    else if (name === 'street_cars' && txt.includes('street')) b.classList.add('active');
+    else if (name === 'lead-detail' && txt.includes('lead')) b.classList.add('active');
+    else if (txt.includes(name.replace('_',' '))) b.classList.add('active');
   });
-  if (name === 'inventory') renderInventory();
-  if (name === 'dashboard') renderDashboard();
+  if (name === 'ga_motors') loadAndRenderInventory('ga_motors');
+  if (name === 'street_cars') loadAndRenderInventory('street_cars');
+  if (name === 'inventory') loadAndRenderInventory('ga_motors'); // legacy fallback
+  if (name === 'dashboard') loadVehicles('ga_motors').then(renderDashboard);
   if (name === 'team') loadTeam();
   if (name === 'leads') { loadLeads().then(() => switchLeadsView(leadsView)); }
 }
 
 // ---- Vehicles ----
-async function loadVehicles() {
+let vehiclesByType = {}; // cache by inventory_type
+
+async function loadVehicles(inventory_type) {
   try {
-    vehicles = await apiFetch('/api/vehicles');
-    if (!vehicles) vehicles = [];
-  } catch (e) { vehicles = []; }
+    const url = inventory_type ? `/api/vehicles?inventory_type=${inventory_type}` : '/api/vehicles';
+    const data = await apiFetch(url);
+    const list = Array.isArray(data) ? data : [];
+    if (inventory_type) vehiclesByType[inventory_type] = list;
+    vehicles = list; // keep backward compat
+    return list;
+  } catch (e) { return []; }
+}
+
+async function loadAndRenderInventory(type) {
+  const list = await loadVehicles(type);
+  const gridId = type === 'ga_motors' ? 'inv-ga-motors' : 'inv-street-cars';
+  const el = document.getElementById(gridId);
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🚗</div><h3>No vehicles yet</h3><p>Click "+ Add Vehicle" to add one</p></div>`;
+    return;
+  }
+  filterInventoryStatus(type, filterStatusVal);
+}
+
+function filterInventoryStatus(type, status) {
+  filterStatusVal = status;
+  const list = vehiclesByType[type] || [];
+  const filtered = status === 'all' ? list : list.filter(v => v.status === status);
+  const gridId = type === 'ga_motors' ? 'inv-ga-motors' : 'inv-street-cars';
+  const el = document.getElementById(gridId);
+  if (el) el.innerHTML = filtered.length ? renderVehicleCards(filtered) : `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🚗</div><h3>No ${status !== 'all' ? status : ''} vehicles</h3></div>`;
 }
 
 function renderDashboard() {
@@ -219,6 +271,7 @@ function renderVehicleCards(list) {
       <div class="vehicle-info">
         <div class="vehicle-title">${esc(v.year || '')} ${esc(v.make || '')} ${esc(v.model || '')}</div>
         <div class="vehicle-sub">${esc(v.trim || '')} ${v.color ? '&bull; ' + esc(v.color) : ''}</div>
+        ${v.inventory_type ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${v.inventory_type === 'ga_motors' ? '🏪 GA Motors' : '🚗 Street Cars'}</div>` : ''}
         <div class="vehicle-stats">
           <span class="vehicle-price">$${(v.purchase_price || 0).toLocaleString()}</span>
           <span class="status-badge status-${v.status}">${v.status}</span>
@@ -504,7 +557,7 @@ async function saveNotes() {
 }
 
 // ---- Add/Edit Vehicle Modal ----
-function openAddModal() {
+function openAddModal(inventory_type) {
   editingVehicle = null;
   document.getElementById('vehicle-modal-title').textContent = 'Add Vehicle';
   document.getElementById('vehicle-modal-save').textContent = 'Add Vehicle';
@@ -515,6 +568,8 @@ function openAddModal() {
   document.getElementById('v-pdate').value = '';
   document.getElementById('v-sdate').value = '';
   document.getElementById('v-status').value = 'active';
+  const invType = document.getElementById('v-inventory-type');
+  if (invType) invType.value = inventory_type || 'ga_motors';
   openModal('vehicle-modal');
 }
 
@@ -553,6 +608,7 @@ async function saveVehicle() {
     status: document.getElementById('v-status').value,
     sell_price: parseFloat(document.getElementById('v-sell').value) || null,
     sell_date: document.getElementById('v-sdate').value || null,
+    inventory_type: document.getElementById('v-inventory-type')?.value || 'ga_motors',
   };
   try {
     if (editingVehicle) {
@@ -564,8 +620,9 @@ async function saveVehicle() {
     } else {
       const newV = await apiFetch('/api/vehicles', { method: 'POST', body: JSON.stringify(body) });
       closeModal('vehicle-modal');
-      await loadVehicles();
-      renderDashboard();
+      const invType = body.inventory_type || 'ga_motors';
+      await loadVehicles(invType);
+      filterInventoryStatus(invType, 'all');
       showToast('Vehicle added!');
     }
   } catch (e) { showToast('Error saving vehicle'); }
@@ -574,45 +631,78 @@ async function saveVehicle() {
 async function deleteVehicle() {
   if (!confirm('Delete this vehicle? This cannot be undone.')) return;
   try {
+    const invType = currentVehicle?.inventory_type || 'ga_motors';
     await apiFetch('/api/vehicles/' + currentVehicleId, { method: 'DELETE' });
     currentVehicle = null; currentVehicleId = null;
-    await loadVehicles();
-    showPage('inventory');
+    await loadVehicles(invType);
+    showPage(invType);
     showToast('Vehicle deleted');
   } catch (e) { showToast('Error deleting vehicle'); }
 }
 
 // ---- Team ----
+let editingUserId = null;
+
 async function loadTeam() {
   try {
     const members = await apiFetch('/api/team');
     if (!members) return;
-    const isOwner = currentUser && currentUser.role === 'owner';
-    let html = members.map(m => `
-      <div class="team-member">
-        <div class="avatar">${((m.first_name || '')[0] || '').toUpperCase() + ((m.last_name || '')[0] || '').toUpperCase()}</div>
+    const canManage = currentUser && ['owner','admin'].includes(currentUser.role);
+    const ROLE_LABELS = { owner: '👑 Owner', admin: '👤 Admin', bdc_rep: '🎯 BDC Rep', member: '🎯 BDC Rep' };
+    const html = members.map(m => {
+      const isSelf = currentUser && m.id === currentUser.id;
+      const canEdit = canManage && !isSelf && m.role !== 'owner';
+      const isBdc = m.role === 'bdc_rep' || m.role === 'member';
+      const perms = isBdc ? `<div style="font-size:11px;color:var(--muted);margin-top:3px">${m.can_view_all_leads ? '✅ All Leads' : '🔒 Assigned Only'} &nbsp; ${m.can_view_dealer_inventory ? '✅ GA Motors' : '🔒 No Inventory'}</div>` : '';
+      return `<div class="team-member" style="${canEdit ? 'cursor:pointer' : ''}" ${canEdit ? `onclick="openPermModal('${m.id}','${esc(m.first_name+' '+m.last_name)}',${m.can_view_all_leads?1:0},${m.can_view_dealer_inventory?1:0},'${m.role}')"` : ''}>
+        <div class="avatar">${((m.first_name||'')[0]||'').toUpperCase()}${((m.last_name||'')[0]||'').toUpperCase()}</div>
         <div class="member-info">
-          <div class="member-name">${esc(m.first_name)} ${esc(m.last_name)}</div>
-          <div class="member-email">${esc(m.email)}${!m.invite_accepted ? ' <span style="color:var(--yellow);font-size:11px">(pending invite)</span>' : ''}</div>
+          <div class="member-name">${esc(m.first_name)} ${esc(m.last_name)}${isSelf?' <span style="color:var(--muted);font-size:11px">(you)</span>':''}</div>
+          <div class="member-email">${esc(m.email)}</div>
+          ${perms}
         </div>
-        <span class="role-badge">${m.role}</span>
-        ${isOwner && currentUser && m.id !== currentUser.id
-          ? `<button class="btn btn-danger btn-sm" onclick="removeMember('${m.id}','${esc(m.first_name)} ${esc(m.last_name)}')">Remove</button>`
-          : ''}
-      </div>`).join('');
+        <div style="text-align:right">
+          <span class="role-badge">${ROLE_LABELS[m.role]||m.role}</span>
+          ${canEdit ? '<div style="font-size:11px;color:var(--muted);margin-top:4px">Tap to edit</div>' : ''}
+        </div>
+      </div>`;
+    }).join('');
     document.getElementById('team-list').innerHTML = html || '<div style="color:var(--muted)">No team members</div>';
-    // Show/hide invite button
-    const inviteBtn = document.querySelector('#page-team .page-header button');
-    if (inviteBtn) inviteBtn.style.display = isOwner ? '' : 'none';
   } catch (e) { showToast('Error loading team'); }
 }
 
-async function removeMember(userId, name) {
-  if (!confirm('Remove ' + name + ' from the team?')) return;
+function openPermModal(userId, name, canLeads, canInventory, role) {
+  editingUserId = userId;
+  document.getElementById('perm-user-name').textContent = name;
+  document.getElementById('perm-view-all-leads').checked = !!canLeads;
+  document.getElementById('perm-view-dealer-inv').checked = !!canInventory;
+  const roleSection = document.getElementById('perm-role-section');
+  if (currentUser?.role === 'owner') {
+    roleSection.innerHTML = `<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Role</div>
+      <select id="perm-role" onchange="updatePermission('role',this.value)" style="width:100%">
+        <option value="bdc_rep" ${(role==='bdc_rep'||role==='member')?'selected':''}>BDC Rep</option>
+        <option value="admin" ${role==='admin'?'selected':''}>Admin</option>
+      </select>`;
+  } else { roleSection.innerHTML = ''; }
+  openModal('perm-modal');
+}
+
+async function updatePermission(field, value) {
+  if (!editingUserId) return;
   try {
-    await apiFetch('/api/team/' + userId, { method: 'DELETE' });
-    showToast('Member removed');
+    await apiFetch(`/api/auth/users/${editingUserId}`, { method: 'PATCH', body: JSON.stringify({ [field]: value }) });
+    showToast('Updated');
     loadTeam();
+  } catch (e) { showToast(e.message || 'Update failed'); }
+}
+
+async function removeUser() {
+  if (!editingUserId) return;
+  const name = document.getElementById('perm-user-name').textContent;
+  if (!confirm(`Remove ${name}? This cannot be undone.`)) return;
+  try {
+    await apiFetch(`/api/auth/users/${editingUserId}`, { method: 'DELETE' });
+    closeModal('perm-modal'); showToast('User removed'); loadTeam();
   } catch (e) { showToast(e.message || 'Remove failed'); }
 }
 
@@ -636,7 +726,8 @@ async function sendInvite() {
     return;
   }
   try {
-    const res = await apiFetch('/api/auth/invite', { method: 'POST', body: JSON.stringify({ email, firstName, lastName }) });
+    const role = document.getElementById('invite-role')?.value || 'bdc_rep';
+    const res = await apiFetch('/api/auth/invite', { method: 'POST', body: JSON.stringify({ email, firstName, lastName, role }) });
     if (!res) return;
     const link = `${window.location.origin}/?invite=${res.inviteToken}`;
     document.getElementById('invite-result').innerHTML = `

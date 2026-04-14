@@ -35,6 +35,15 @@ async function toJpeg(filePath) {
 }
 
 const UPLOADS_ROOT = process.env.UPLOADS_DIR || path.resolve(__dirname, '..', 'uploads');
+const { isAdmin, isBdcRep, canViewDealerInventory } = require('../middleware/roles');
+
+// Check if user can access a vehicle given its inventory_type
+function canAccessInventory(req, inventory_type) {
+  if (isAdmin(req)) return true; // admins see everything
+  if (inventory_type === 'street_cars') return false; // BDC reps never see street_cars
+  if (inventory_type === 'ga_motors') return canViewDealerInventory(req);
+  return false;
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -51,26 +60,39 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 // GET /api/vehicles
 router.get('/', async (req, res) => {
   try {
-    const r = await db.query(`
+    const { inventory_type } = req.query;
+
+    // BDC reps: enforce inventory access
+    if (isBdcRep(req)) {
+      if (!inventory_type) return res.json([]); // must specify type
+      if (inventory_type === 'street_cars') return res.status(403).json({ error: 'Access denied' });
+      if (inventory_type === 'ga_motors' && !canViewDealerInventory(req)) return res.status(403).json({ error: 'GA Motors inventory access not enabled' });
+    }
+
+    let sql = `
       SELECT v.*,
         COALESCE((SELECT SUM(amount) FROM expenses WHERE vehicle_id = v.id), 0) as total_expenses,
         (SELECT COUNT(*) FROM checklist_items WHERE vehicle_id = v.id) as checklist_total,
         (SELECT COUNT(*) FROM checklist_items WHERE vehicle_id = v.id AND completed = 1) as checklist_done,
         (SELECT filename FROM photos WHERE vehicle_id = v.id ORDER BY created_at ASC LIMIT 1) as thumb_filename
-      FROM vehicles v WHERE v.org_id = $1 ORDER BY v.created_at DESC
-    `, [req.user.orgId]);
+      FROM vehicles v WHERE v.org_id = $1`;
+    const params = [req.user.orgId];
+    if (inventory_type) { sql += ` AND v.inventory_type = $2`; params.push(inventory_type); }
+    sql += ' ORDER BY v.created_at DESC';
+    const r = await db.query(sql, params);
     res.json(r.rows);
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/vehicles
+// POST /api/vehicles — admin/owner only
 router.post('/', async (req, res) => {
+  if (isBdcRep(req)) return res.status(403).json({ error: 'BDC reps cannot add inventory' });
   try {
-    const { year, make, model, trim, vin, color, purchase_price, purchase_date, status, kbb_value, notes } = req.body;
+    const { year, make, model, trim, vin, color, purchase_price, purchase_date, status, kbb_value, notes, inventory_type } = req.body;
     const id = uuidv4();
     await db.query(
-      `INSERT INTO vehicles (id, org_id, year, make, model, trim, vin, color, purchase_price, purchase_date, status, kbb_value, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-      [id, req.user.orgId, year||null, make||null, model||null, trim||null, vin||null, color||null, purchase_price||0, purchase_date||null, status||'active', kbb_value||null, notes||null]
+      `INSERT INTO vehicles (id, org_id, year, make, model, trim, vin, color, purchase_price, purchase_date, status, kbb_value, notes, inventory_type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [id, req.user.orgId, year||null, make||null, model||null, trim||null, vin||null, color||null, purchase_price||0, purchase_date||null, status||'active', kbb_value||null, notes||null, inventory_type||'ga_motors']
     );
     const v = await db.query('SELECT * FROM vehicles WHERE id = $1', [id]);
     res.status(201).json(v.rows[0]);
@@ -83,6 +105,7 @@ router.get('/:id', async (req, res) => {
     const vr = await db.query('SELECT * FROM vehicles WHERE id = $1 AND org_id = $2', [req.params.id, req.user.orgId]);
     if (!vr.rows.length) return res.status(404).json({ error: 'Not found' });
     const vehicle = vr.rows[0];
+    if (!canAccessInventory(req, vehicle.inventory_type)) return res.status(403).json({ error: 'Access denied' });
     const [expenses, checklist, photos] = await Promise.all([
       db.query('SELECT * FROM expenses WHERE vehicle_id = $1 ORDER BY created_at DESC', [req.params.id]),
       db.query('SELECT * FROM checklist_items WHERE vehicle_id = $1 ORDER BY created_at ASC', [req.params.id]),
