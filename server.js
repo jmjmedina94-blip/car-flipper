@@ -64,6 +64,7 @@ app.use('/api/vehicles', ...withPerms, require('./routes/vehicles'));
 app.use('/api/team', ...withPerms, require('./routes/team'));
 app.use('/api/leads/inbound', require('./routes/leads-inbound')); // No auth — SendGrid webhook (MUST be before /api/leads)
 app.use('/api/leads', ...withPerms, require('./routes/leads'));
+app.use('/api/dealer-inventory', ...withPerms, require('./routes/dealer-inventory'));
 
 // SPA fallback
 app.get('*', (req, res) => {
@@ -76,4 +77,12 @@ process.on('unhandledRejection', err => { console.error('Unhandled:', err); });
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚗 Car Flipper running on port ${PORT}`);
+
+  // Daily dealer inventory sync at 6am
+  const cron = require('node-cron');
+  const { syncInventory } = require('./routes/dealer-inventory');
+  cron.schedule('0 6 * * *', () => {
+    console.log('Running daily dealer inventory sync...');
+    syncInventory();
+  });
 });

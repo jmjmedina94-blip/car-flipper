@@ -141,6 +141,27 @@ if (DATABASE_URL) {
       description TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS dealer_inventory (
+      id TEXT PRIMARY KEY,
+      vehicle_year INTEGER,
+      vehicle_make TEXT,
+      vehicle_model TEXT,
+      vehicle_trim TEXT,
+      price INTEGER,
+      mileage INTEGER,
+      photo_url TEXT,
+      detail_url TEXT,
+      external_id TEXT UNIQUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS dealer_sync_log (
+      id TEXT PRIMARY KEY,
+      synced_at TIMESTAMPTZ DEFAULT NOW(),
+      vehicle_count INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'success',
+      error TEXT
+    );
   `).then(() => console.log('PG schema ready')).catch(e => console.error('PG schema error:', e.message));
 
   // Migrations for existing PG DBs
@@ -167,6 +188,13 @@ if (DATABASE_URL) {
     `INSERT INTO lead_vehicles (id, lead_id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price, created_at)
      SELECT gen_random_uuid()::text, id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, vehicle_vin, vehicle_stock_number, listed_price, created_at
      FROM leads WHERE vehicle_make IS NOT NULL AND id NOT IN (SELECT lead_id FROM lead_vehicles)`,
+    `CREATE TABLE IF NOT EXISTS dealer_inventory (
+      id TEXT PRIMARY KEY, vehicle_year INTEGER, vehicle_make TEXT, vehicle_model TEXT, vehicle_trim TEXT,
+      price INTEGER, mileage INTEGER, photo_url TEXT, detail_url TEXT, external_id TEXT UNIQUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`,
+    `CREATE TABLE IF NOT EXISTS dealer_sync_log (
+      id TEXT PRIMARY KEY, synced_at TIMESTAMPTZ DEFAULT NOW(), vehicle_count INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'success', error TEXT)`,
   ];
   for (const m of migrations) pool.query(m).catch(() => {});
 
@@ -320,6 +348,27 @@ if (DATABASE_URL) {
       activity_type TEXT NOT NULL,
       description TEXT,
       created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS dealer_inventory (
+      id TEXT PRIMARY KEY,
+      vehicle_year INTEGER,
+      vehicle_make TEXT,
+      vehicle_model TEXT,
+      vehicle_trim TEXT,
+      price INTEGER,
+      mileage INTEGER,
+      photo_url TEXT,
+      detail_url TEXT,
+      external_id TEXT UNIQUE,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS dealer_sync_log (
+      id TEXT PRIMARY KEY,
+      synced_at TEXT DEFAULT (datetime('now')),
+      vehicle_count INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'success',
+      error TEXT
     );
   `);
 

@@ -205,7 +205,7 @@ function showPage(name) {
     else if (name === 'lead-detail' && txt.includes('lead')) b.classList.add('active');
     else if (txt.includes(name.replace('_',' '))) b.classList.add('active');
   });
-  if (name === 'ga_motors') loadAndRenderInventory('ga_motors');
+  if (name === 'ga_motors') { loadAndRenderInventory('ga_motors'); loadDealerInventory(); }
   if (name === 'street_cars') loadAndRenderInventory('street_cars');
   if (name === 'inventory') loadAndRenderInventory('ga_motors'); // legacy fallback
   if (name === 'dashboard') loadVehicles('ga_motors').then(renderDashboard);
@@ -310,6 +310,63 @@ function renderVehicleCards(list) {
           <span class="status-badge status-${v.status}">${v.status}</span>
         </div>
         <div style="margin-top:8px">${profitStr}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Dealer Inventory ----
+async function loadDealerInventory() {
+  try {
+    const data = await apiFetch('/api/dealer-inventory');
+    renderDealerInventory(data.vehicles || []);
+    renderDealerSyncStatus(data.lastSync);
+  } catch (e) {}
+}
+
+async function syncDealerInventory() {
+  const btn = document.getElementById('dealer-sync-btn');
+  btn.disabled = true;
+  btn.textContent = 'Syncing...';
+  try {
+    const data = await apiFetch('/api/dealer-inventory/sync', { method: 'POST' });
+    renderDealerInventory(data.vehicles || []);
+    renderDealerSyncStatus(data.lastSync);
+    showToast(`Synced ${data.vehicles?.length || 0} vehicles`);
+  } catch (e) { showToast('Sync failed — site may be blocking requests'); }
+  btn.disabled = false;
+  btn.textContent = 'Sync Inventory';
+}
+
+function renderDealerSyncStatus(sync) {
+  const el = document.getElementById('dealer-last-sync');
+  if (!el) return;
+  if (!sync) { el.textContent = 'Never synced'; return; }
+  const d = new Date(sync.synced_at);
+  el.textContent = `Last synced: ${d.toLocaleDateString()} ${d.toLocaleTimeString()} · ${sync.vehicle_count} vehicles` +
+    (sync.status === 'error' ? ' · Failed' : '');
+}
+
+function renderDealerInventory(vehicles) {
+  const el = document.getElementById('dealer-inventory-grid');
+  if (!el) return;
+  if (!vehicles.length) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🏪</div><h3>No dealer inventory</h3><p>Click "Sync Inventory" to fetch listings from gamotorsca.com</p></div>';
+    return;
+  }
+  el.innerHTML = vehicles.map(v => {
+    const title = [v.vehicle_year, v.vehicle_make, v.vehicle_model].filter(Boolean).join(' ');
+    const photo = v.photo_url
+      ? `<img src="${esc(v.photo_url)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px\\'>🏪</div>'">`
+      : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px">🏪</div>';
+    return `<div class="vehicle-card" onclick="window.open('${esc(v.detail_url)}','_blank')" style="cursor:pointer">
+      <div class="vehicle-thumb">${photo}</div>
+      <div class="vehicle-info">
+        <div class="vehicle-title">${esc(title)}</div>
+        <div class="vehicle-sub">${esc(v.vehicle_trim || '')}${v.mileage ? ' · ' + v.mileage.toLocaleString() + ' mi' : ''}</div>
+        <div class="vehicle-stats">
+          <span class="vehicle-price">${v.price ? '$' + v.price.toLocaleString() : '—'}</span>
+        </div>
       </div>
     </div>`;
   }).join('');
