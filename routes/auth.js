@@ -174,4 +174,14 @@ router.delete('/users/:userId', authenticate, requireRole('admin'), async (req, 
   } catch (err) { console.error('Delete user error:', err); res.status(500).json({ error: err.message }); }
 });
 
+// PATCH /api/auth/org — update org name (owner only)
+router.patch('/org', authenticate, requireRole('owner'), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    await db.query('UPDATE orgs SET name = $1 WHERE id = $2', [name, req.user.orgId]);
+    res.json({ ok: true, name });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
