@@ -84,8 +84,22 @@ function parseVehicleCards(html) {
     let detailUrl = cleanUrl(detailHref) || detailHref;
     if (detailUrl && !detailUrl.startsWith('http')) detailUrl = DEALER_BASE + detailUrl;
 
+    // VIN from features list
+    let vin = null;
+    $card.find('.features-list .feature, .vehicle-features li').each((j, feat) => {
+      const label = $(feat).find('.feature-label').text().trim().toLowerCase();
+      const value = $(feat).find('.feature-value').text().trim();
+      if (label.includes('vin') && value) vin = value;
+    });
+    // Fallback: look for 17-char VIN pattern anywhere in card text
+    if (!vin) {
+      const cardText = $card.text();
+      const vinMatch = cardText.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+      if (vinMatch) vin = vinMatch[1];
+    }
+
     if (year || make) {
-      vehicles.push({ year, make, model, trim: trim || null, price, mileage, photoUrl, detailUrl, externalId });
+      vehicles.push({ year, make, model, trim: trim || null, price, mileage, photoUrl, detailUrl, externalId, vin });
     }
   });
 
@@ -169,9 +183,9 @@ async function syncInventory() {
     await db.query('DELETE FROM dealer_inventory');
     for (const v of vehicles) {
       await db.query(
-        `INSERT INTO dealer_inventory (id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, price, mileage, photo_url, detail_url, external_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        [uuidv4(), v.year, v.make, v.model, v.trim, v.price, v.mileage, v.photoUrl, v.detailUrl, v.externalId]
+        `INSERT INTO dealer_inventory (id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, price, mileage, photo_url, detail_url, external_id, vin)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [uuidv4(), v.year, v.make, v.model, v.trim, v.price, v.mileage, v.photoUrl, v.detailUrl, v.externalId, v.vin]
       );
     }
 

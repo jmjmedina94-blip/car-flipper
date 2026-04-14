@@ -152,6 +152,7 @@ if (DATABASE_URL) {
       photo_url TEXT,
       detail_url TEXT,
       external_id TEXT UNIQUE,
+      vin TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -195,6 +196,7 @@ if (DATABASE_URL) {
     `CREATE TABLE IF NOT EXISTS dealer_sync_log (
       id TEXT PRIMARY KEY, synced_at TIMESTAMPTZ DEFAULT NOW(), vehicle_count INTEGER DEFAULT 0,
       status TEXT DEFAULT 'success', error TEXT)`,
+    `ALTER TABLE dealer_inventory ADD COLUMN IF NOT EXISTS vin TEXT`,
   ];
   for (const m of migrations) pool.query(m).catch(() => {});
 
@@ -360,6 +362,7 @@ if (DATABASE_URL) {
       photo_url TEXT,
       detail_url TEXT,
       external_id TEXT UNIQUE,
+      vin TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -375,6 +378,7 @@ if (DATABASE_URL) {
   // Migrations for existing SQLite DBs
   const sqliteMigrations = [
     `ALTER TABLE leads ADD COLUMN last_contacted_at TEXT`,
+    `ALTER TABLE dealer_inventory ADD COLUMN vin TEXT`,
   ];
   for (const m of sqliteMigrations) { try { sqlite.exec(m); } catch (e) {} }
 

@@ -363,7 +363,7 @@ function renderDealerInventory(vehicles) {
       <div class="vehicle-thumb">${photo}</div>
       <div class="vehicle-info">
         <div class="vehicle-title">${esc(title)}</div>
-        <div class="vehicle-sub">${esc(v.vehicle_trim || '')}${v.mileage ? ' · ' + v.mileage.toLocaleString() + ' mi' : ''}</div>
+        <div class="vehicle-sub">${esc(v.vehicle_trim || '')}${v.mileage ? ' · ' + v.mileage.toLocaleString() + ' mi' : ''}${v.vin ? ' · VIN: ' + esc(v.vin) : ''}</div>
         <div class="vehicle-stats">
           <span class="vehicle-price">${v.price ? '$' + v.price.toLocaleString() : '—'}</span>
         </div>
