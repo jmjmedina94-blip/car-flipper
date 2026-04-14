@@ -494,6 +494,12 @@
         <option value="lost">Lost</option>
       </select>
       <input type="text" id="leads-search" placeholder="Search name, phone, email..." oninput="refreshLeads()" style="flex:1;min-width:160px">
+      <select id="leads-sort" onchange="changeLeadsSort(this.value)" style="max-width:200px">
+        <option value="lead_date_desc">Lead Date (Newest)</option>
+        <option value="lead_date_asc">Lead Date (Oldest)</option>
+        <option value="contacted_desc">Last Contacted (Newest)</option>
+        <option value="contacted_asc">Last Contacted (Oldest)</option>
+      </select>
       <select id="leads-page-size" onchange="changeLeadsPageSize(this.value)" style="max-width:80px">
         <option value="10">10</option>
         <option value="25" selected>25</option>

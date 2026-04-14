@@ -128,6 +128,10 @@ router.patch('/:id', async (req, res) => {
     if (req.body.status && req.body.status !== old.status) {
       await logActivity(req.params.id, req.user.userId, 'status_change',
         `Status changed from ${old.status} to ${req.body.status}`);
+      if (['contacted', 'appointment'].includes(req.body.status)) {
+        const nowExpr = db.isPg ? 'NOW()' : "datetime('now')";
+        await db.query(`UPDATE leads SET last_contacted_at = ${nowExpr} WHERE id = $1`, [req.params.id]);
+      }
     }
     // Auto-log assignment change
     if (req.body.assigned_to !== undefined && req.body.assigned_to !== old.assigned_to) {

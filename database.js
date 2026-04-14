@@ -100,6 +100,7 @@ if (DATABASE_URL) {
       customer_zip TEXT,
       cargurus_transaction_id TEXT UNIQUE,
       cargurus_listing_url TEXT,
+      last_contacted_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -144,6 +145,7 @@ if (DATABASE_URL) {
     `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS external_source TEXT`,
     `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS external_id TEXT`,
     `ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ`,
+    `ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at TIMESTAMPTZ`,
     `UPDATE vehicles SET inventory_type = 'street_cars' WHERE inventory_type = 'ga_motors'`,
   ];
   for (const m of migrations) pool.query(m).catch(() => {});
@@ -258,6 +260,7 @@ if (DATABASE_URL) {
       customer_zip TEXT,
       cargurus_transaction_id TEXT UNIQUE,
       cargurus_listing_url TEXT,
+      last_contacted_at TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -287,6 +290,12 @@ if (DATABASE_URL) {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // Migrations for existing SQLite DBs
+  const sqliteMigrations = [
+    `ALTER TABLE leads ADD COLUMN last_contacted_at TEXT`,
+  ];
+  for (const m of sqliteMigrations) { try { sqlite.exec(m); } catch (e) {} }
 
   db = sqlite;
   db.isPg = false;

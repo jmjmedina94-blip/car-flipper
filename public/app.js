@@ -804,6 +804,7 @@ document.addEventListener('keydown', e => {
 let leadsData = [];
 let leadsPage = 1;
 let leadsPageSize = 25;
+let leadsSort = 'lead_date_desc';
 let currentLeadId = null;
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-indexed
@@ -921,6 +922,26 @@ function renderCalDayLeads(dateStr, leads) {
   el.innerHTML = html;
 }
 
+function sortLeads(data) {
+  const sorted = [...data];
+  if (leadsSort === 'lead_date_desc') {
+    sorted.sort((a, b) => (b.lead_date || b.created_at || '').localeCompare(a.lead_date || a.created_at || ''));
+  } else if (leadsSort === 'lead_date_asc') {
+    sorted.sort((a, b) => (a.lead_date || a.created_at || '').localeCompare(b.lead_date || b.created_at || ''));
+  } else if (leadsSort === 'contacted_desc') {
+    sorted.sort((a, b) => (b.last_contacted_at || '').localeCompare(a.last_contacted_at || ''));
+  } else if (leadsSort === 'contacted_asc') {
+    sorted.sort((a, b) => (a.last_contacted_at || '').localeCompare(b.last_contacted_at || ''));
+  }
+  return sorted;
+}
+
+function changeLeadsSort(val) {
+  leadsSort = val;
+  leadsPage = 1;
+  renderLeadsList();
+}
+
 function renderLeadsList() {
   const el = document.getElementById('leads-list-container');
   const pagEl = document.getElementById('leads-pagination');
@@ -930,11 +951,12 @@ function renderLeadsList() {
     if (pagEl) pagEl.innerHTML = '';
     return;
   }
-  const total = leadsData.length;
+  const sorted = sortLeads(leadsData);
+  const total = sorted.length;
   const totalPages = Math.ceil(total / leadsPageSize);
   if (leadsPage > totalPages) leadsPage = totalPages;
   const start = (leadsPage - 1) * leadsPageSize;
-  const page = leadsData.slice(start, start + leadsPageSize);
+  const page = sorted.slice(start, start + leadsPageSize);
   el.innerHTML = page.map(l => leadRowHTML(l)).join('');
   if (pagEl) pagEl.innerHTML = buildPagination(leadsPage, totalPages, total);
 }
