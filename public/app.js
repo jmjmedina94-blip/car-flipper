@@ -991,8 +991,25 @@ function switchLeadsView(view) {
   document.getElementById('leads-list-view').style.display = view === 'list' ? '' : 'none';
   document.getElementById('leads-cal-btn').className = view === 'calendar' ? 'btn btn-secondary btn-sm' : 'btn btn-ghost btn-sm';
   document.getElementById('leads-list-btn').className = view === 'list' ? 'btn btn-secondary btn-sm' : 'btn btn-ghost btn-sm';
+  positionFilterBar(view);
   if (view === 'calendar') renderCalendar();
   else renderLeadsList();
+}
+
+function positionFilterBar(view) {
+  const bar = document.getElementById('leads-filter-bar');
+  if (!bar) return;
+  if (view === 'list') {
+    // Move before the list view container
+    const listView = document.getElementById('leads-list-view');
+    listView.parentElement.insertBefore(bar, listView);
+    bar.style.display = '';
+  } else {
+    // Move into the calendar day filter slot, hidden until a day is selected
+    const slot = document.getElementById('cal-day-filter-slot');
+    if (slot) slot.appendChild(bar);
+    bar.style.display = selectedCalDay ? '' : 'none';
+  }
 }
 
 // ---- Calendar ----
@@ -1039,11 +1056,15 @@ function renderCalendar() {
 
   grid.innerHTML = html;
 
+  const filterBar = document.getElementById('leads-filter-bar');
   if (selectedCalDay && byDate[selectedCalDay]) {
+    if (filterBar) filterBar.style.display = '';
     renderCalDayLeads(selectedCalDay, byDate[selectedCalDay]);
   } else if (selectedCalDay) {
+    if (filterBar) filterBar.style.display = '';
     dayLeads.innerHTML = `<div style="color:var(--muted);font-size:14px;padding:8px 0">No leads on this date</div>`;
   } else {
+    if (filterBar) filterBar.style.display = 'none';
     dayLeads.innerHTML = '';
   }
 }

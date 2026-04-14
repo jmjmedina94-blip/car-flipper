@@ -552,7 +552,7 @@
       </div>
     </div>
     <!-- Filters -->
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <div id="leads-filter-bar" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <select id="leads-filter-status" onchange="refreshLeads()" style="max-width:140px">
         <option value="">All Statuses</option>
         <option value="new">New</option>
@@ -587,6 +587,7 @@
         <button class="btn btn-ghost btn-sm" onclick="calNav(1)">Next →</button>
       </div>
       <div class="calendar-grid" id="cal-grid"></div>
+      <div id="cal-day-filter-slot"></div>
       <div id="cal-day-leads" style="margin-top:16px"></div>
     </div>
     <!-- List View -->
