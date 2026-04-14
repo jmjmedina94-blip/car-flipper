@@ -578,13 +578,15 @@
           <option value="contacted_desc">Last Contacted (Newest)</option>
           <option value="contacted_asc">Last Contacted (Oldest)</option>
         </select>
-        <select id="leads-page-size" onchange="changeLeadsPageSize(this.value)" style="max-width:80px">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="text" id="leads-search" placeholder="Search name, phone, email..." oninput="refreshLeads()" style="flex:1;min-width:0">
+        <select id="leads-page-size" onchange="changeLeadsPageSize(this.value)" style="max-width:80px;flex-shrink:0">
           <option value="10">10</option>
           <option value="25" selected>25</option>
           <option value="50">50</option>
         </select>
       </div>
-      <input type="text" id="leads-search" placeholder="Search name, phone, email..." oninput="refreshLeads()" style="width:100%">
     </div>
     <!-- Calendar View -->
     <div id="leads-calendar-view">
