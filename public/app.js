@@ -370,7 +370,7 @@ function showDetailTab(name) {
   document.querySelectorAll('.detail-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   // Find and activate the right tab button
-  const tabNames = ['overview','checklist','expenses','photos','notes'];
+  const tabNames = ['overview','photos','notes'];
   const tabs = document.querySelectorAll('.detail-tab');
   const idx = tabNames.indexOf(name);
   if (idx !== -1 && tabs[idx]) tabs[idx].classList.add('active');
@@ -442,7 +442,7 @@ function renderExpenses(items) {
   const el = document.getElementById('expenses-list');
   const tot = document.getElementById('exp-total');
   if (!el) return;
-  if (!items || !items.length) { el.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:8px 0">No expenses yet</div>'; if(tot) tot.textContent = ''; return; }
+  if (!items || !items.length) { el.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:8px 0">No recon items yet</div>'; if(tot) tot.textContent = ''; return; }
   const catLabel = { parts: 'Parts', labor: 'Labor', fees: 'Fees', other: 'Other' };
   el.innerHTML = items.map(i => `
     <div class="expense-item">
@@ -454,7 +454,7 @@ function renderExpenses(items) {
       <button class="expense-delete" onclick="deleteExpense('${i.id}')">&#10005;</button>
     </div>`).join('');
   const total = items.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-  if (tot) tot.innerHTML = `Total Expenses: <span>-$${total.toLocaleString()}</span>`;
+  if (tot) tot.innerHTML = `Total Cost: <span>-$${total.toLocaleString()}</span>`;
 }
 
 async function addExpense() {
@@ -484,8 +484,8 @@ async function addExpense() {
     if (currentVehicle && currentVehicle.summary) {
       document.getElementById('ov-exp').textContent = '-$' + (currentVehicle.summary.total_expenses || 0).toLocaleString();
     }
-    showToast('Expense added');
-  } catch (e) { showToast('Error adding expense'); }
+    showToast('Recon item added');
+  } catch (e) { showToast('Error adding recon item'); }
 }
 
 async function deleteExpense(expId) {

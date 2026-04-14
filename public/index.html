@@ -441,8 +441,6 @@
     </div>
     <div class="detail-tabs">
       <button class="detail-tab active" onclick="showDetailTab('overview')">Overview</button>
-      <button class="detail-tab" onclick="showDetailTab('checklist')">Checklist</button>
-      <button class="detail-tab" onclick="showDetailTab('expenses')">Expenses</button>
       <button class="detail-tab" onclick="showDetailTab('photos')">Photos</button>
       <button class="detail-tab" onclick="showDetailTab('notes')">Notes</button>
     </div>
@@ -450,7 +448,7 @@
     <div class="detail-panel active" id="panel-overview">
       <div class="summary-grid">
         <div class="summary-card"><div class="summary-label">Purchase Price</div><div class="summary-value" id="ov-buy">—</div></div>
-        <div class="summary-card"><div class="summary-label">Total Expenses</div><div class="summary-value red" id="ov-exp">—</div></div>
+        <div class="summary-card"><div class="summary-label">Total Cost</div><div class="summary-value red" id="ov-exp">—</div></div>
         <div class="summary-card"><div class="summary-label">KBB Value</div><div class="summary-value" id="ov-kbb">—</div></div>
         <div class="summary-card"><div class="summary-label">Est. Profit</div><div class="summary-value green" id="ov-est">—</div></div>
         <div class="summary-card"><div class="summary-label">Sell Price</div><div class="summary-value" id="ov-sell">—</div></div>
@@ -470,26 +468,28 @@
           <option value="sold">Sold</option>
         </select>
       </div>
-    </div>
-    <!-- Checklist -->
-    <div class="detail-panel" id="panel-checklist">
-      <div class="checklist-list" id="checklist-list"></div>
-      <div class="add-item-row">
-        <select id="cl-cat"><option value="mechanical">🔧 Mechanical</option><option value="bodywork">🎨 Bodywork</option><option value="other">📋 Other</option></select>
-        <input type="text" id="cl-desc" placeholder="e.g. Replace brake pads" style="flex:2">
-        <button class="btn btn-primary btn-sm" onclick="addChecklistItem()">Add</button>
+      <!-- To-Do's -->
+      <div class="detail-section" style="margin-top:24px">
+        <h3>To-Do's</h3>
+        <div class="checklist-list" id="checklist-list"></div>
+        <div class="add-item-row">
+          <select id="cl-cat"><option value="mechanical">🔧 Mechanical</option><option value="bodywork">🎨 Bodywork</option><option value="other">📋 Other</option></select>
+          <input type="text" id="cl-desc" placeholder="e.g. Replace brake pads" style="flex:2">
+          <button class="btn btn-primary btn-sm" onclick="addChecklistItem()">Add</button>
+        </div>
       </div>
-    </div>
-    <!-- Expenses -->
-    <div class="detail-panel" id="panel-expenses">
-      <div class="expenses-list" id="expenses-list"></div>
-      <div id="exp-total" class="expense-total"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
-        <select id="exp-cat"><option value="parts">🔩 Parts</option><option value="labor">🔨 Labor</option><option value="fees">📄 Fees</option><option value="other">📦 Other</option></select>
-        <input type="text" id="exp-desc" placeholder="Description" style="flex:2;min-width:100px">
-        <input type="number" id="exp-amount" placeholder="Amount" style="width:100px">
-        <input type="date" id="exp-date" style="width:140px">
-        <button class="btn btn-primary btn-sm" onclick="addExpense()">Add</button>
+      <!-- Recon -->
+      <div class="detail-section" style="margin-top:16px">
+        <h3>Recon</h3>
+        <div class="expenses-list" id="expenses-list"></div>
+        <div id="exp-total" class="expense-total"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+          <select id="exp-cat"><option value="parts">🔩 Parts</option><option value="labor">🔨 Labor</option><option value="fees">📄 Fees</option><option value="other">📦 Other</option></select>
+          <input type="text" id="exp-desc" placeholder="Description" style="flex:2;min-width:100px">
+          <input type="number" id="exp-amount" placeholder="Amount" style="width:100px">
+          <input type="date" id="exp-date" style="width:140px">
+          <button class="btn btn-primary btn-sm" onclick="addExpense()">Add</button>
+        </div>
       </div>
     </div>
     <!-- Photos -->
