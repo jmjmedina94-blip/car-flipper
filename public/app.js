@@ -62,15 +62,19 @@ function applyNavVisibility(me) {
   const canDealer = ['owner','admin'].includes(role) || me?.can_view_dealer_inventory;
   const canStreet = ['owner','admin'].includes(role); // BDC reps never
   const canTeam = ['owner','admin'].includes(role);
+  const canLeads = ['owner','admin'].includes(role) || me?.can_view_all_leads;
 
   const setNav = (id, show) => {
     const el = document.getElementById(id);
     if (el) el.style.display = show ? '' : 'none';
   };
+  setNav('nav-leads', canLeads);
   setNav('nav-ga-motors', canDealer);
   setNav('nav-street-cars', canStreet);
+  setNav('mnav-leads', canLeads);
   setNav('mnav-ga-motors', canDealer);
   setNav('mnav-street-cars', canStreet);
+  setNav('mnav-team', canTeam);
 
   // Team nav — only admins/owners
   document.querySelectorAll('.nav-btn').forEach(b => {
