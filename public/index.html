@@ -472,9 +472,9 @@
       <div class="detail-section" style="margin-top:24px">
         <h3>To-Do's</h3>
         <div class="checklist-list" id="checklist-list"></div>
-        <div class="add-item-row">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <select id="cl-cat"><option value="mechanical">🔧 Mechanical</option><option value="bodywork">🎨 Bodywork</option><option value="other">📋 Other</option></select>
-          <input type="text" id="cl-desc" placeholder="e.g. Replace brake pads" style="flex:2">
+          <input type="text" id="cl-desc" placeholder="e.g. Replace brake pads" style="flex:2;min-width:200px">
           <button class="btn btn-primary btn-sm" onclick="addChecklistItem()">Add</button>
         </div>
       </div>
