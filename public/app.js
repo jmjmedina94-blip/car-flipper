@@ -942,11 +942,18 @@ async function loadLeadDetail(id) {
       `<option value="${s}" ${lead.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
     ).join('');
 
-    // Assigned dropdown
-    const team = await apiFetch('/api/team');
-    document.getElementById('ld-assigned').innerHTML =
-      `<option value="">Unassigned</option>` +
-      team.map(m => `<option value="${m.id}" ${lead.assigned_to===m.id?'selected':''}>${esc(m.first_name+' '+m.last_name)}</option>`).join('');
+    // Assigned dropdown — only admins can reassign
+    const assignedEl = document.getElementById('ld-assigned');
+    if (isAdmin()) {
+      const team = await apiFetch('/api/team');
+      assignedEl.innerHTML =
+        `<option value="">Unassigned</option>` +
+        team.map(m => `<option value="${m.id}" ${lead.assigned_to===m.id?'selected':''}>${esc(m.first_name+' '+m.last_name)}</option>`).join('');
+      assignedEl.style.display = '';
+    } else {
+      // BDC reps: show assigned name as read-only, hide dropdown
+      assignedEl.style.display = 'none';
+    }
 
     // Contact info
     const phoneEl = document.getElementById('ld-phone');
