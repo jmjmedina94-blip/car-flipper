@@ -10,6 +10,8 @@ RUN npm ci --omit=dev
 
 COPY . .
 
+# /app/uploads will be a Railway Volume mount in production
+# /app/data is for SQLite in dev (production uses PostgreSQL)
 RUN mkdir -p /app/uploads /app/data
 
 EXPOSE 3200
