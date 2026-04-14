@@ -41,7 +41,7 @@ async function initApp() {
     const initials = ((me.firstName || '')[0] || '').toUpperCase() + ((me.lastName || '')[0] || '').toUpperCase();
     document.getElementById('user-avatar').textContent = initials || '?';
     applyNavVisibility(me);
-    await loadVehicles('ga_motors'); // pre-load GA Motors
+    if (canViewDealerInventory()) await loadVehicles('ga_motors'); // pre-load GA Motors (skip if no access)
     renderDashboard();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-dashboard').classList.add('active');
@@ -230,17 +230,29 @@ function filterInventoryStatus(type, status) {
 function renderDashboard() {
   const active = vehicles.filter(v => v.status !== 'sold');
   const sold = vehicles.filter(v => v.status === 'sold');
-  const totalInvested = active.reduce((s, v) => s + (v.purchase_price || 0), 0);
-  const portfolio = active.reduce((s, v) => s + (v.kbb_value || 0), 0);
-  let totalProfit = 0;
-  sold.forEach(v => { if (v.sell_price) totalProfit += (v.sell_price || 0) - (v.purchase_price || 0) - (v.total_expenses || 0); });
+  // Hide financial metrics from BDC reps
+  const financialCards = ['stat-invested', 'stat-portfolio', 'stat-profit'];
+  financialCards.forEach(id => {
+    const card = document.getElementById(id)?.closest('.stat-card');
+    if (card) card.style.display = isBdcRep() ? 'none' : '';
+  });
   document.getElementById('stat-active').textContent = active.length;
-  document.getElementById('stat-invested').textContent = '$' + totalInvested.toLocaleString();
-  document.getElementById('stat-portfolio').textContent = portfolio ? '$' + portfolio.toLocaleString() : '—';
-  const profEl = document.getElementById('stat-profit');
-  profEl.textContent = (totalProfit >= 0 ? '+' : '') + '$' + Math.abs(totalProfit).toLocaleString();
-  profEl.className = 'stat-value ' + (totalProfit >= 0 ? 'green' : 'red');
-  document.getElementById('dash-vehicles').innerHTML = renderVehicleCards(vehicles.slice(0, 6));
+  if (!isBdcRep()) {
+    const totalInvested = active.reduce((s, v) => s + (v.purchase_price || 0), 0);
+    const portfolio = active.reduce((s, v) => s + (v.kbb_value || 0), 0);
+    let totalProfit = 0;
+    sold.forEach(v => { if (v.sell_price) totalProfit += (v.sell_price || 0) - (v.purchase_price || 0) - (v.total_expenses || 0); });
+    document.getElementById('stat-invested').textContent = '$' + totalInvested.toLocaleString();
+    document.getElementById('stat-portfolio').textContent = portfolio ? '$' + portfolio.toLocaleString() : '—';
+    const profEl = document.getElementById('stat-profit');
+    profEl.textContent = (totalProfit >= 0 ? '+' : '') + '$' + Math.abs(totalProfit).toLocaleString();
+    profEl.className = 'stat-value ' + (totalProfit >= 0 ? 'green' : 'red');
+  }
+  if (isBdcRep() && !canViewDealerInventory()) {
+    document.getElementById('dash-vehicles').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔒</div><h3>Inventory access not enabled</h3><p>Contact your admin to enable GA Motors inventory access.</p></div>';
+  } else {
+    document.getElementById('dash-vehicles').innerHTML = renderVehicleCards(vehicles.slice(0, 6));
+  }
 }
 
 function renderInventory() {
