@@ -930,6 +930,8 @@ let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-indexed
 let leadsView = 'calendar'; // 'calendar' | 'list'
 let selectedCalDay = null;
+let calDayPage = 1;
+let calDayLeadsCache = [];
 
 const STATUS_ICONS = { call:'📞', text:'💬', email:'📧', note:'📝', status_change:'🔄', assignment:'👤' };
 
@@ -1048,15 +1050,30 @@ function renderCalendar() {
 
 function selectCalDay(dateStr) {
   selectedCalDay = selectedCalDay === dateStr ? null : dateStr;
+  calDayPage = 1;
   renderCalendar();
 }
 
 function renderCalDayLeads(dateStr, leads) {
+  calDayLeadsCache = leads;
   const el = document.getElementById('cal-day-leads');
   const d = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-  let html = `<div style="font-size:15px;font-weight:600;margin-bottom:10px">${d} — ${leads.length} lead${leads.length!==1?'s':''}</div>`;
-  html += leads.map(l => leadRowHTML(l)).join('');
+  const total = leads.length;
+  const totalPages = Math.ceil(total / leadsPageSize);
+  if (calDayPage > totalPages) calDayPage = totalPages || 1;
+  const start = (calDayPage - 1) * leadsPageSize;
+  const page = leads.slice(start, start + leadsPageSize);
+  let html = `<div style="font-size:15px;font-weight:600;margin-bottom:10px">${d} — ${total} lead${total!==1?'s':''}</div>`;
+  html += page.map(l => leadRowHTML(l)).join('');
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px">`;
+  html += buildPagination(calDayPage, totalPages, total, 'goCalDayPage');
+  html += `</div>`;
   el.innerHTML = html;
+}
+
+function goCalDayPage(p) {
+  calDayPage = p;
+  if (selectedCalDay && calDayLeadsCache.length) renderCalDayLeads(selectedCalDay, calDayLeadsCache);
 }
 
 function sortLeads(data) {
@@ -1098,12 +1115,13 @@ function renderLeadsList() {
   if (pagEl) pagEl.innerHTML = buildPagination(leadsPage, totalPages, total);
 }
 
-function buildPagination(current, totalPages, totalItems) {
+function buildPagination(current, totalPages, totalItems, goFn) {
+  const fn = goFn || 'goLeadsPage';
   if (totalPages <= 1) return `<span style="font-size:13px;color:var(--muted)">${totalItems} lead${totalItems!==1?'s':''}</span>`;
   const start = (current - 1) * leadsPageSize + 1;
   const end = Math.min(current * leadsPageSize, totalItems);
   let html = `<span style="font-size:13px;color:var(--muted)">${start}–${end} of ${totalItems}</span><div style="display:flex;gap:4px;align-items:center">`;
-  html += `<button class="btn btn-ghost btn-sm" onclick="goLeadsPage(${current - 1})" ${current===1?'disabled':''}>‹ Prev</button>`;
+  html += `<button class="btn btn-ghost btn-sm" onclick="${fn}(${current - 1})" ${current===1?'disabled':''}>‹ Prev</button>`;
   const pages = [];
   for (let p = 1; p <= totalPages; p++) {
     if (p === 1 || p === totalPages || (p >= current - 1 && p <= current + 1)) pages.push(p);
@@ -1111,9 +1129,9 @@ function buildPagination(current, totalPages, totalItems) {
   }
   for (const p of pages) {
     if (p === '...') { html += `<span style="color:var(--muted);font-size:13px">…</span>`; continue; }
-    html += `<button class="btn ${p===current?'btn-secondary':'btn-ghost'} btn-sm" onclick="goLeadsPage(${p})" style="min-width:32px">${p}</button>`;
+    html += `<button class="btn ${p===current?'btn-secondary':'btn-ghost'} btn-sm" onclick="${fn}(${p})" style="min-width:32px">${p}</button>`;
   }
-  html += `<button class="btn btn-ghost btn-sm" onclick="goLeadsPage(${current + 1})" ${current===totalPages?'disabled':''}>Next ›</button></div>`;
+  html += `<button class="btn btn-ghost btn-sm" onclick="${fn}(${current + 1})" ${current===totalPages?'disabled':''}>Next ›</button></div>`;
   return html;
 }
 
