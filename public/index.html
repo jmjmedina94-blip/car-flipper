@@ -28,6 +28,8 @@
       --status-appointment-bg: #0a1628;
       --status-sold-bg: #003d30;
       --status-lost-bg: #1a1a1a;
+      --status-reengaged-bg: #2a1800;
+      --orange: #ff9800;
       --status-active-bg: #0a1628;
       --status-listed-bg: #2a1a00;
       --btn-danger-bg: #2a0a0f;
@@ -54,6 +56,8 @@
       --status-appointment-bg: #e3f2fd;
       --status-sold-bg: #e0f2f1;
       --status-lost-bg: #f0f0f0;
+      --status-reengaged-bg: #fff3e0;
+      --orange: #e67c00;
       --status-active-bg: #e3f2fd;
       --status-listed-bg: #fff3e0;
       --btn-danger-bg: #fce4ec;
@@ -239,6 +243,7 @@
     .cal-dot.appointment { background: var(--blue); }
     .cal-dot.sold { background: var(--green); }
     .cal-dot.lost { background: var(--muted); }
+    .cal-dot.reengaged { background: var(--orange); }
     .lead-row { display: flex; align-items: center; gap: 12px; background: var(--card2); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); cursor: pointer; transition: border 0.2s; margin-bottom: 8px; }
     .lead-row:hover { border-color: var(--accent); }
     .lead-name { font-size: 14px; font-weight: 600; flex: 1; }
@@ -249,6 +254,7 @@
     .status-appointment { background: var(--status-appointment-bg); color: var(--blue); border: 1px solid var(--blue); }
     .status-sold { background: var(--status-sold-bg); color: var(--green); border: 1px solid var(--green); }
     .status-lost { background: var(--status-lost-bg); color: var(--muted); border: 1px solid var(--muted); }
+    .status-reengaged { background: var(--status-reengaged-bg); color: var(--orange); border: 1px solid var(--orange); }
     .activity-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
     .activity-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
     .activity-body { flex: 1; }
@@ -550,6 +556,7 @@
       <select id="leads-filter-status" onchange="refreshLeads()" style="max-width:140px">
         <option value="">All Statuses</option>
         <option value="new">New</option>
+        <option value="reengaged">Reengaged</option>
         <option value="contacted">Contacted</option>
         <option value="appointment">Appointment</option>
         <option value="sold">Sold</option>
@@ -731,6 +738,7 @@
         <div class="form-group"><label>Status</label>
           <select id="al-status">
             <option value="new">New</option>
+            <option value="reengaged">Reengaged</option>
             <option value="contacted">Contacted</option>
             <option value="appointment">Appointment</option>
             <option value="sold">Sold</option>

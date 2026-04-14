@@ -1142,7 +1142,7 @@ async function loadLeadDetail(id) {
     document.getElementById('ld-name').textContent = lead.name;
 
     // Status dropdown
-    const statuses = ['new','contacted','appointment','sold','lost'];
+    const statuses = ['new','reengaged','contacted','appointment','sold','lost'];
     document.getElementById('ld-status').innerHTML = statuses.map(s =>
       `<option value="${s}" ${lead.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
     ).join('');

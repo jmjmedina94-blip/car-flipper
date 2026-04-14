@@ -178,9 +178,10 @@ async function createCarGurusLead(parsed, orgId) {
   }
 
   if (existingId) {
-    // Update contact info with latest
+    // Update contact info, set reengaged status, update lead_date to now
     const nowExpr = db.isPg ? 'NOW()' : "datetime('now')";
-    await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), updated_at = ${nowExpr} WHERE id = $4`,
+    const todayExpr = db.isPg ? 'CURRENT_DATE::text' : "date('now')";
+    await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), status = 'reengaged', lead_date = ${todayExpr}, updated_at = ${nowExpr} WHERE id = $4`,
       [parsed.name || 'Unknown', parsed.phone, parsed.email, existingId]);
     // Add vehicle of interest
     if (parsed.vehicle_make || parsed.vehicle_model || parsed.vehicle_vin) {
@@ -377,9 +378,10 @@ router.post('/csv', authenticate, upload.single('csv'), async (req, res) => {
         let leadId;
         if (existingId) {
           leadId = existingId;
-          // Update contact info, add vehicle
+          // Update contact info, set reengaged status, update lead_date to now
           const nowExpr = db.isPg ? 'NOW()' : "datetime('now')";
-          await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), updated_at = ${nowExpr} WHERE id = $4`,
+          const todayExpr = db.isPg ? 'CURRENT_DATE::text' : "date('now')";
+          await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), status = 'reengaged', lead_date = ${todayExpr}, updated_at = ${nowExpr} WHERE id = $4`,
             [name, phone, email, existingId]);
           if (make || model || vin) {
             await db.query(

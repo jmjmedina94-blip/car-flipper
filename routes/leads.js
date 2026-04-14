@@ -87,9 +87,10 @@ router.post('/', async (req, res) => {
     }
 
     if (existingId) {
-      // Update contact info with latest data
+      // Update contact info, set reengaged status, update lead_date to now
       const nowExpr = db.isPg ? 'NOW()' : "datetime('now')";
-      await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), updated_at = ${nowExpr} WHERE id = $4`,
+      const todayExpr = db.isPg ? 'CURRENT_DATE::text' : "date('now')";
+      await db.query(`UPDATE leads SET name = $1, phone = COALESCE($2, phone), email = COALESCE($3, email), status = 'reengaged', lead_date = ${todayExpr}, updated_at = ${nowExpr} WHERE id = $4`,
         [name, phone||null, email||null, existingId]);
       // Add vehicle of interest
       if (vehicle_make || vehicle_model || vehicle_vin) {
