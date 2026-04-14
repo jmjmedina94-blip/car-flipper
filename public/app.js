@@ -802,6 +802,8 @@ document.addEventListener('keydown', e => {
 // ============================================================
 
 let leadsData = [];
+let leadsPage = 1;
+let leadsPageSize = 25;
 let currentLeadId = null;
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-indexed
@@ -826,9 +828,21 @@ async function loadLeads() {
 }
 
 async function refreshLeads() {
+  leadsPage = 1;
   await loadLeads();
   if (leadsView === 'calendar') renderCalendar();
   else renderLeadsList();
+}
+
+function changeLeadsPageSize(val) {
+  leadsPageSize = parseInt(val, 10);
+  leadsPage = 1;
+  renderLeadsList();
+}
+
+function goLeadsPage(p) {
+  leadsPage = p;
+  renderLeadsList();
 }
 
 function switchLeadsView(view) {
@@ -909,9 +923,39 @@ function renderCalDayLeads(dateStr, leads) {
 
 function renderLeadsList() {
   const el = document.getElementById('leads-list-container');
+  const pagEl = document.getElementById('leads-pagination');
   if (!el) return;
-  if (!leadsData.length) { el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📋</div><h3>No leads yet</h3><p>Click "+ Add Lead" to add your first lead</p></div>'; return; }
-  el.innerHTML = leadsData.map(l => leadRowHTML(l)).join('');
+  if (!leadsData.length) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📋</div><h3>No leads yet</h3><p>Click "+ Add Lead" to add your first lead</p></div>';
+    if (pagEl) pagEl.innerHTML = '';
+    return;
+  }
+  const total = leadsData.length;
+  const totalPages = Math.ceil(total / leadsPageSize);
+  if (leadsPage > totalPages) leadsPage = totalPages;
+  const start = (leadsPage - 1) * leadsPageSize;
+  const page = leadsData.slice(start, start + leadsPageSize);
+  el.innerHTML = page.map(l => leadRowHTML(l)).join('');
+  if (pagEl) pagEl.innerHTML = buildPagination(leadsPage, totalPages, total);
+}
+
+function buildPagination(current, totalPages, totalItems) {
+  if (totalPages <= 1) return `<span style="font-size:13px;color:var(--muted)">${totalItems} lead${totalItems!==1?'s':''}</span>`;
+  const start = (current - 1) * leadsPageSize + 1;
+  const end = Math.min(current * leadsPageSize, totalItems);
+  let html = `<span style="font-size:13px;color:var(--muted)">${start}–${end} of ${totalItems}</span><div style="display:flex;gap:4px;align-items:center">`;
+  html += `<button class="btn btn-ghost btn-sm" onclick="goLeadsPage(${current - 1})" ${current===1?'disabled':''}>‹ Prev</button>`;
+  const pages = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= current - 1 && p <= current + 1)) pages.push(p);
+    else if (pages[pages.length - 1] !== '...') pages.push('...');
+  }
+  for (const p of pages) {
+    if (p === '...') { html += `<span style="color:var(--muted);font-size:13px">…</span>`; continue; }
+    html += `<button class="btn ${p===current?'btn-secondary':'btn-ghost'} btn-sm" onclick="goLeadsPage(${p})" style="min-width:32px">${p}</button>`;
+  }
+  html += `<button class="btn btn-ghost btn-sm" onclick="goLeadsPage(${current + 1})" ${current===totalPages?'disabled':''}>Next ›</button></div>`;
+  return html;
 }
 
 function leadRowHTML(l) {

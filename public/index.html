@@ -494,6 +494,11 @@
         <option value="lost">Lost</option>
       </select>
       <input type="text" id="leads-search" placeholder="Search name, phone, email..." oninput="refreshLeads()" style="flex:1;min-width:160px">
+      <select id="leads-page-size" onchange="changeLeadsPageSize(this.value)" style="max-width:80px">
+        <option value="10">10</option>
+        <option value="25" selected>25</option>
+        <option value="50">50</option>
+      </select>
     </div>
     <!-- Calendar View -->
     <div id="leads-calendar-view">
@@ -509,6 +514,7 @@
     <!-- List View -->
     <div id="leads-list-view" style="display:none">
       <div id="leads-list-container"></div>
+      <div id="leads-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:8px"></div>
     </div>
   </div>
 
