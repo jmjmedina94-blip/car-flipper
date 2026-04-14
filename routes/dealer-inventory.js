@@ -84,18 +84,37 @@ function parseVehicleCards(html) {
     let detailUrl = cleanUrl(detailHref) || detailHref;
     if (detailUrl && !detailUrl.startsWith('http')) detailUrl = DEALER_BASE + detailUrl;
 
-    // VIN from features list
+    // VIN extraction — try multiple strategies
     let vin = null;
-    $card.find('.features-list .feature, .vehicle-features li').each((j, feat) => {
-      const label = $(feat).find('.feature-label').text().trim().toLowerCase();
-      const value = $(feat).find('.feature-value').text().trim();
-      if (label.includes('vin') && value) vin = value;
+    // 1. Features list (live site)
+    $card.find('.features-list .feature, .vehicle-features li, li.feature, .spec-item').each((j, feat) => {
+      const text = $(feat).text().toLowerCase();
+      if (text.includes('vin')) {
+        const value = $(feat).find('.feature-value, .spec-value, span:last-child').text().trim();
+        if (value && /^[A-HJ-NPR-Z0-9]{17}$/i.test(value)) vin = value.toUpperCase();
+      }
     });
-    // Fallback: look for 17-char VIN pattern anywhere in card text
+    // 2. Data attributes on card
+    if (!vin) {
+      vin = $card.attr('data-vin') || $card.find('[data-vin]').attr('data-vin') || null;
+    }
+    // 3. VIN pattern in card HTML (catches hidden inputs, data attributes, inline text)
+    if (!vin) {
+      const cardHtml = $card.html() || '';
+      const vinAttrMatch = cardHtml.match(/vin['":\s=]+["']?([A-HJ-NPR-Z0-9]{17})/i);
+      if (vinAttrMatch) vin = vinAttrMatch[1].toUpperCase();
+    }
+    // 4. 17-char VIN pattern in card text
     if (!vin) {
       const cardText = $card.text();
       const vinMatch = cardText.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
-      if (vinMatch) vin = vinMatch[1];
+      if (vinMatch) vin = vinMatch[1].toUpperCase();
+    }
+    // 5. VIN from detail URL path or image filename
+    if (!vin) {
+      const allText = (detailHref + ' ' + (rawPhotoUrl || '')).toUpperCase();
+      const urlVin = allText.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+      if (urlVin) vin = urlVin[1];
     }
 
     if (year || make) {
@@ -235,6 +254,39 @@ router.post('/sync', async (req, res) => {
       res.status(500).json({ error: result.error, details: result.details });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/dealer-inventory/push — accept pre-scraped data from local sync script
+router.post('/push', express.json({ limit: '5mb' }), async (req, res) => {
+  try {
+    const secret = process.env.INVENTORY_PUSH_SECRET;
+    if (!secret || req.headers['x-push-secret'] !== secret) {
+      return res.status(401).json({ error: 'Invalid or missing push secret' });
+    }
+    const { vehicles } = req.body;
+    if (!Array.isArray(vehicles)) return res.status(400).json({ error: 'vehicles array required' });
+
+    const logId = uuidv4();
+    await db.query('DELETE FROM dealer_inventory');
+    for (const v of vehicles) {
+      await db.query(
+        `INSERT INTO dealer_inventory (id, vehicle_year, vehicle_make, vehicle_model, vehicle_trim, price, mileage, photo_url, detail_url, external_id, vin)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [uuidv4(), v.year||v.vehicle_year, v.make||v.vehicle_make, v.model||v.vehicle_model,
+         v.trim||v.vehicle_trim||null, v.price||null, v.mileage||null, v.photoUrl||v.photo_url||null,
+         v.detailUrl||v.detail_url||null, v.externalId||v.external_id||uuidv4(), v.vin||null]
+      );
+    }
+    await db.query(
+      `INSERT INTO dealer_sync_log (id, vehicle_count, status) VALUES ($1,$2,$3)`,
+      [logId, vehicles.length, 'success']
+    );
+    console.log(`Dealer inventory pushed: ${vehicles.length} vehicles from local sync`);
+    res.json({ ok: true, count: vehicles.length });
+  } catch (e) {
+    console.error('Push error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;
