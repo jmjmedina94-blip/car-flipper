@@ -16,7 +16,9 @@
  *   0 6 * * * cd /path/to/car-flipper && RAILWAY_URL=https://your-app.up.railway.app INVENTORY_PUSH_SECRET=secret node scripts/sync-inventory-local.js >> /tmp/inventory-sync.log 2>&1
  */
 
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const cheerio = require('cheerio');
 const axios = require('axios');
 
@@ -32,9 +34,10 @@ if (!RAILWAY_URL || !PUSH_SECRET) {
 
 async function scrape() {
   console.log(`[${new Date().toISOString()}] Launching browser...`);
+  const isTest = process.argv.includes('--visible');
   const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+    headless: isTest ? false : 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled', '--window-size=1440,900'],
   });
 
   try {
