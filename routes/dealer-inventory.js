@@ -31,16 +31,12 @@ function randomDelay(min = 500, max = 2000) {
   return new Promise(r => setTimeout(r, min + Math.random() * (max - min)));
 }
 
-// Strip Wayback Machine URL prefix: /web/{timestamp}/https://... → https://...
+// Strip Wayback Machine URL prefix: /web/{timestamp}im_/https://... → https://...
+// Timestamp can have suffixes like "im_", "js_", "cs_", "if_" etc.
 function cleanUrl(url) {
   if (!url) return null;
-  const wbMatch = url.match(/\/web\/\d+\/(https?:\/\/.+)/);
+  const wbMatch = url.match(/(?:https?:\/\/web\.archive\.org)?\/web\/\d+[a-z_]*\/(https?:\/\/.+)/);
   if (wbMatch) return wbMatch[1];
-  // Also handle relative Wayback paths
-  if (url.startsWith('/web/')) {
-    const m = url.match(/\/web\/\d+\/(.+)/);
-    if (m) return m[1];
-  }
   return url;
 }
 
