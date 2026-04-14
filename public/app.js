@@ -505,12 +505,58 @@ function renderPhotos(photos, vehicleId) {
   const grid = document.getElementById('photo-grid');
   if (!grid) return;
   const vid = vehicleId || currentVehicleId;
-  if (!photos || !photos.length) { grid.innerHTML = ''; return; }
-  grid.innerHTML = photos.map(p => `
-    <div class="photo-item" id="photo-${p.id}">
-      <img src="${p.url || '/uploads/vehicles/' + vid + '/' + p.filename}" onclick="openLightbox(this.src)" alt="">
+  const dlAll = document.getElementById('photo-download-all');
+  if (!photos || !photos.length) { grid.innerHTML = ''; if (dlAll) dlAll.style.display = 'none'; return; }
+  if (dlAll) dlAll.style.display = '';
+  grid.innerHTML = photos.map((p, i) => {
+    const src = p.url || '/uploads/vehicles/' + vid + '/' + p.filename;
+    return `<div class="photo-item" id="photo-${p.id}">
+      <img src="${src}" onclick="openLightbox(this.src)" alt="">
+      <button class="photo-download" onclick="downloadPhoto('${src}', ${i + 1}, event)" title="Download">⬇</button>
       <button class="photo-delete" onclick="deletePhoto('${p.id}', event)">&#10005;</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function getVehiclePhotoPrefix() {
+  if (!currentVehicle) return 'photo';
+  return [currentVehicle.year, currentVehicle.make, currentVehicle.model].filter(Boolean).join('-').replace(/\s+/g, '-') || 'photo';
+}
+
+async function downloadPhoto(src, index, e) {
+  e.stopPropagation();
+  try {
+    const res = await fetch(src);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${getVehiclePhotoPrefix()}-photo-${index}.jpg`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) { showToast('Error downloading photo'); }
+}
+
+async function downloadAllPhotos() {
+  if (!currentVehicle?.photos?.length) return;
+  showToast('Preparing zip...');
+  try {
+    const zip = new JSZip();
+    const prefix = getVehiclePhotoPrefix();
+    const photos = currentVehicle.photos;
+    for (let i = 0; i < photos.length; i++) {
+      const src = photos[i].url || '/uploads/vehicles/' + currentVehicleId + '/' + photos[i].filename;
+      const res = await fetch(src);
+      const blob = await res.blob();
+      zip.file(`${prefix}-photo-${i + 1}.jpg`, blob);
+    }
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `${prefix}-photos.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`${photos.length} photo${photos.length > 1 ? 's' : ''} downloaded`);
+  } catch (err) { showToast('Error creating zip'); }
 }
 
 // Compress image to max 1600px wide, quality 0.85
