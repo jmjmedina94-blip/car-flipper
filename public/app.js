@@ -1,4 +1,10 @@
 // Car Flipper — Frontend App
+function fmtPhone(p) {
+  if (!p) return '';
+  const d = p.replace(/\D/g, '');
+  const n = d.length === 11 && d[0] === '1' ? d.slice(1) : d;
+  return n.length === 10 ? `(${n.slice(0,3)}) ${n.slice(3,6)}-${n.slice(6)}` : p;
+}
 let token = localStorage.getItem('token');
 let currentUser = null;
 let vehicles = [];
@@ -913,7 +919,7 @@ function leadRowHTML(l) {
   return `<div class="lead-row" onclick="openLead('${l.id}')">
     <div style="flex:1">
       <div class="lead-name">${esc(l.name)}</div>
-      <div class="lead-phone">${esc(l.phone || '')} ${l.email ? '· '+esc(l.email) : ''}</div>
+      <div class="lead-phone">${esc(fmtPhone(l.phone))} ${l.email ? '· '+esc(l.email) : ''}</div>
       <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(veh)} · ${esc(l.source)}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
@@ -957,7 +963,7 @@ async function loadLeadDetail(id) {
 
     // Contact info
     const phoneEl = document.getElementById('ld-phone');
-    phoneEl.textContent = lead.phone || '—';
+    phoneEl.textContent = fmtPhone(lead.phone) || '—';
     phoneEl.href = lead.phone ? `tel:${lead.phone}` : '';
     const emailEl = document.getElementById('ld-email');
     emailEl.textContent = lead.email || '—';
