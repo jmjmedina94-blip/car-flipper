@@ -5,21 +5,32 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const db = require('../database');
+const { execFile } = require('child_process');
+const util = require('util');
+const execFileAsync = util.promisify(execFile);
 let sharp; try { sharp = require('sharp'); } catch(e) { sharp = null; }
 
 // Convert any image (including HEIC) to JPEG for browser compatibility
 async function toJpeg(filePath) {
-  if (!sharp) return filePath;
   const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.jpg' || ext === '.jpeg') return filePath; // already JPEG
+  if (ext === '.jpg' || ext === '.jpeg') return filePath;
   const jpgPath = filePath.replace(/\.[^.]+$/, '.jpg');
   try {
-    await sharp(filePath).jpeg({ quality: 88 }).toFile(jpgPath);
-    fs.unlinkSync(filePath); // remove original
+    // Try sharp first
+    if (sharp) {
+      await sharp(filePath).jpeg({ quality: 88 }).toFile(jpgPath);
+      fs.unlinkSync(filePath);
+      return jpgPath;
+    }
+    // Fallback: ImageMagick convert
+    await execFileAsync('convert', [filePath, jpgPath]);
+    fs.unlinkSync(filePath);
     return jpgPath;
   } catch(e) {
     console.error('Image conversion error:', e.message);
-    return filePath; // fall back to original if conversion fails
+    // Last resort: rename to .jpg and hope browser can handle it
+    try { fs.renameSync(filePath, jpgPath); return jpgPath; } catch(e2) {}
+    return filePath;
   }
 }
 
