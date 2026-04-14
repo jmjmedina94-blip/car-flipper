@@ -552,7 +552,7 @@
       </div>
     </div>
     <!-- Filters -->
-    <div id="leads-filter-bar" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+    <div id="leads-filter-bar" style="display:flex;gap:6px;margin-bottom:16px;align-items:center;flex-wrap:nowrap;overflow-x:auto">
       <select id="leads-filter-status" onchange="refreshLeads()" style="max-width:140px">
         <option value="">All Statuses</option>
         <option value="new">New</option>
@@ -577,7 +577,7 @@
         <option value="contacted_desc">Last Contacted (Newest)</option>
         <option value="contacted_asc">Last Contacted (Oldest)</option>
       </select>
-      <input type="text" id="leads-search" placeholder="Search name, phone, email..." oninput="refreshLeads()" style="flex:1;min-width:140px">
+      <input type="text" id="leads-search" placeholder="Search..." oninput="refreshLeads()" style="flex:1;min-width:80px">
       <select id="leads-page-size" onchange="changeLeadsPageSize(this.value)" style="max-width:80px">
         <option value="10">10</option>
         <option value="25" selected>25</option>
