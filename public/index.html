@@ -396,20 +396,23 @@
   <!-- Inventory -->
   <!-- GA Motors Inventory -->
   <div class="page" id="page-ga_motors">
-    <div class="page-header">
-      <div>
-        <div class="page-title">GA Motors</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">Dealer Inventory</div>
+    <!-- Manual dealer inventory section — hidden from BDC reps -->
+    <div id="ga-manual-section">
+      <div class="page-header">
+        <div>
+          <div class="page-title">GA Motors</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Dealer Inventory</div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="add-ga-btn" onclick="openAddModal('ga_motors')">+ Add Vehicle</button>
       </div>
-      <button class="btn btn-primary btn-sm" id="add-ga-btn" onclick="openAddModal('ga_motors')">+ Add Vehicle</button>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','all')">All</button>
+        <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','active')">Active</button>
+        <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','listed')">Listed</button>
+        <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','sold')">Sold</button>
+      </div>
+      <div class="vehicle-grid" id="inv-ga-motors"></div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','all')">All</button>
-      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','active')">Active</button>
-      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','listed')">Listed</button>
-      <button class="btn btn-secondary btn-sm" onclick="filterInventoryStatus('ga_motors','sold')">Sold</button>
-    </div>
-    <div class="vehicle-grid" id="inv-ga-motors"></div>
     <!-- Dealer Website Inventory -->
     <div style="margin-top:32px">
       <div class="page-header">

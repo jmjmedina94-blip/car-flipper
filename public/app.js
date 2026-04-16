@@ -94,6 +94,7 @@ function applyNavVisibility(me) {
     if (el) el.style.display = show ? '' : 'none';
   };
   const canDashboard = ['owner','admin'].includes(role); // BDC never sees dashboard (P&L)
+  const canManualDealer = ['owner','admin'].includes(role); // BDC sees Website Inventory only
   setNav('nav-dashboard', canDashboard);
   setNav('mnav-dashboard', canDashboard);
   setNav('nav-leads', canLeads);
@@ -103,6 +104,7 @@ function applyNavVisibility(me) {
   setNav('mnav-ga-motors', canDealer);
   setNav('mnav-street-cars', canStreet);
   setNav('mnav-team', canTeam);
+  setNav('ga-manual-section', canManualDealer);
 
   // Team nav — only admins/owners
   document.querySelectorAll('.nav-btn').forEach(b => {
