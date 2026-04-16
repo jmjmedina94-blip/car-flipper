@@ -58,12 +58,17 @@ async function initApp() {
     const initials = ((me.firstName || '')[0] || '').toUpperCase() + ((me.lastName || '')[0] || '').toUpperCase();
     document.getElementById('user-avatar').textContent = initials || '?';
     applyNavVisibility(me);
-    if (canViewDealerInventory()) await loadVehicles('ga_motors'); // pre-load GA Motors (skip if no access)
-    // Navigate to hash route or default to dashboard
+    // Pre-load the inventory the landing page will use
+    if (isBdcRep()) {
+      // BDC reps land on Leads (and never see the dashboard)
+    } else {
+      await loadVehicles('street_cars'); // dashboard reflects Street Cars
+    }
+    // Navigate to hash route or default landing page
     if (location.hash && location.hash !== '#') {
       navigateFromHash();
     } else {
-      showPage('dashboard');
+      showPage(isBdcRep() ? 'leads' : 'dashboard');
     }
   } catch (e) {
     token = null; localStorage.removeItem('token');
@@ -88,6 +93,9 @@ function applyNavVisibility(me) {
     const el = document.getElementById(id);
     if (el) el.style.display = show ? '' : 'none';
   };
+  const canDashboard = ['owner','admin'].includes(role); // BDC never sees dashboard (P&L)
+  setNav('nav-dashboard', canDashboard);
+  setNav('mnav-dashboard', canDashboard);
   setNav('nav-leads', canLeads);
   setNav('nav-ga-motors', canDealer);
   setNav('nav-street-cars', canStreet);
@@ -213,7 +221,10 @@ function showPage(name, skipHash) {
   if (name === 'ga_motors') { loadAndRenderInventory('ga_motors'); loadDealerInventory(); }
   if (name === 'street_cars') loadAndRenderInventory('street_cars');
   if (name === 'inventory') loadAndRenderInventory('ga_motors'); // legacy fallback
-  if (name === 'dashboard') loadVehicles('ga_motors').then(renderDashboard);
+  if (name === 'dashboard') {
+    if (isBdcRep()) { showPage('leads'); return; }
+    loadVehicles('street_cars').then(renderDashboard);
+  }
   if (name === 'team') loadTeam();
   if (name === 'leads') { loadLeadVehicleFilter(); loadLeads().then(() => switchLeadsView(leadsView)); }
   // Update URL hash

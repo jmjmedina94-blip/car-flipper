@@ -355,7 +355,7 @@
   <div class="topbar">
     <div class="topbar-logo">&#128663; Car Flipper</div>
     <div class="topbar-nav" id="topbar-nav">
-      <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+      <button class="nav-btn active" id="nav-dashboard" onclick="showPage('dashboard')">Dashboard</button>
       <button class="nav-btn" id="nav-leads" onclick="showPage('leads')">Leads</button>
       <button class="nav-btn" id="nav-ga-motors" onclick="showPage('ga_motors')">GA Motors</button>
       <button class="nav-btn" id="nav-street-cars" onclick="showPage('street_cars')">Street Cars</button>
@@ -371,7 +371,7 @@
   </div>
   <!-- Mobile nav drawer -->
   <div id="mobile-nav" style="display:none;background:var(--card);border-bottom:1px solid var(--border);padding:8px 12px;flex-direction:column;gap:4px;">
-    <button class="nav-btn" style="text-align:left" onclick="showPage('dashboard');closeMobileMenu()">Dashboard</button>
+    <button class="nav-btn" id="mnav-dashboard" style="text-align:left" onclick="showPage('dashboard');closeMobileMenu()">Dashboard</button>
     <button class="nav-btn" id="mnav-leads" style="text-align:left" onclick="showPage('leads');closeMobileMenu()">Leads</button>
     <button class="nav-btn" id="mnav-ga-motors" style="text-align:left" onclick="showPage('ga_motors');closeMobileMenu()">GA Motors</button>
     <button class="nav-btn" id="mnav-street-cars" style="text-align:left" onclick="showPage('street_cars');closeMobileMenu()">Street Cars</button>
