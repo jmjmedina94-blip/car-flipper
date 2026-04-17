@@ -94,7 +94,6 @@ function applyNavVisibility(me) {
     if (el) el.style.display = show ? '' : 'none';
   };
   const canDashboard = ['owner','admin'].includes(role); // BDC never sees dashboard (P&L)
-  const canManualDealer = ['owner','admin'].includes(role); // BDC sees Website Inventory only
   setNav('nav-dashboard', canDashboard);
   setNav('mnav-dashboard', canDashboard);
   setNav('nav-leads', canLeads);
@@ -104,15 +103,12 @@ function applyNavVisibility(me) {
   setNav('mnav-ga-motors', canDealer);
   setNav('mnav-street-cars', canStreet);
   setNav('mnav-team', canTeam);
-  setNav('ga-manual-section', canManualDealer);
 
   // Team nav — only admins/owners
   document.querySelectorAll('.nav-btn').forEach(b => {
     if (b.textContent.trim() === 'Team') b.style.display = canTeam ? '' : 'none';
   });
 
-  // Add vehicle buttons — only admins/owners
-  document.querySelectorAll('[id="add-ga-btn"]').forEach(b => b.style.display = canTeam ? '' : 'none');
 }
 
 // ---- API ----
@@ -220,9 +216,9 @@ function showPage(name, skipHash) {
     else if (name === 'lead-detail' && txt.includes('lead')) b.classList.add('active');
     else if (txt.includes(name.replace('_',' '))) b.classList.add('active');
   });
-  if (name === 'ga_motors') { loadAndRenderInventory('ga_motors'); loadDealerInventory(); }
+  if (name === 'ga_motors') loadDealerInventory();
   if (name === 'street_cars') loadAndRenderInventory('street_cars');
-  if (name === 'inventory') loadAndRenderInventory('ga_motors'); // legacy fallback
+  if (name === 'inventory') loadAndRenderInventory('street_cars'); // legacy fallback
   if (name === 'dashboard') {
     if (isBdcRep()) { showPage('leads'); return; }
     loadVehicles('street_cars').then(renderDashboard);
@@ -775,7 +771,7 @@ function openAddModal(inventory_type) {
   document.getElementById('v-sdate').value = '';
   document.getElementById('v-status').value = 'active';
   const invType = document.getElementById('v-inventory-type');
-  if (invType) invType.value = inventory_type || 'ga_motors';
+  if (invType) invType.value = inventory_type || 'street_cars';
   openModal('vehicle-modal');
 }
 
@@ -814,7 +810,7 @@ async function saveVehicle() {
     status: document.getElementById('v-status').value,
     sell_price: parseFloat(document.getElementById('v-sell').value) || null,
     sell_date: document.getElementById('v-sdate').value || null,
-    inventory_type: document.getElementById('v-inventory-type')?.value || 'ga_motors',
+    inventory_type: document.getElementById('v-inventory-type')?.value || 'street_cars',
   };
   try {
     if (editingVehicle) {
@@ -826,7 +822,7 @@ async function saveVehicle() {
     } else {
       const newV = await apiFetch('/api/vehicles', { method: 'POST', body: JSON.stringify(body) });
       closeModal('vehicle-modal');
-      const invType = body.inventory_type || 'ga_motors';
+      const invType = body.inventory_type || 'street_cars';
       await loadVehicles(invType);
       filterInventoryStatus(invType, 'all');
       showToast('Vehicle added!');
@@ -837,7 +833,7 @@ async function saveVehicle() {
 async function deleteVehicle() {
   if (!confirm('Delete this vehicle? This cannot be undone.')) return;
   try {
-    const invType = currentVehicle?.inventory_type || 'ga_motors';
+    const invType = currentVehicle?.inventory_type || 'street_cars';
     await apiFetch('/api/vehicles/' + currentVehicleId, { method: 'DELETE' });
     currentVehicle = null; currentVehicleId = null;
     await loadVehicles(invType);
