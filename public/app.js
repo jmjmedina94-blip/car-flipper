@@ -1318,6 +1318,9 @@ async function loadLeadDetail(id) {
     document.getElementById('ld-source').textContent = lead.source || '—';
     document.getElementById('ld-lead-date').textContent = lead.lead_date || '—';
 
+    // Prev/Next navigation within current leads context
+    renderLeadNav();
+
     // Vehicles of interest
     renderLeadVehicles(lead.vehicles || []);
 
@@ -1337,6 +1340,25 @@ async function patchLead(field, value) {
   } catch (e) { showToast('Error updating lead'); }
 }
 
+// Renders Prev/Next buttons on the lead detail page using whichever
+// leads list the user is currently navigating (calendar day or list view).
+function renderLeadNav() {
+  const el = document.getElementById('ld-nav');
+  if (!el) return;
+  const list = (selectedCalDay && calDayLeadsCache.length)
+    ? calDayLeadsCache
+    : sortLeads(leadsData || []);
+  const idx = list.findIndex(l => l.id === currentLeadId);
+  if (idx === -1) { el.innerHTML = ''; return; }
+  const prev = idx > 0 ? list[idx - 1] : null;
+  const next = idx < list.length - 1 ? list[idx + 1] : null;
+  let html = '';
+  html += `<button class="btn btn-ghost btn-sm" onclick="openLead('${prev?.id || ''}')" ${prev ? '' : 'disabled'}>‹ Prev</button>`;
+  html += `<span style="font-size:12px;color:var(--muted);align-self:center">${idx + 1} of ${list.length}</span>`;
+  html += `<button class="btn btn-ghost btn-sm" onclick="openLead('${next?.id || ''}')" ${next ? '' : 'disabled'}>Next ›</button>`;
+  el.innerHTML = html;
+}
+
 function renderLeadVehicles(vehicles) {
   const el = document.getElementById('lead-vehicles-list');
   if (!vehicles.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No vehicles yet</div>'; return; }
@@ -1344,8 +1366,11 @@ function renderLeadVehicles(vehicles) {
     const title = [v.vehicle_year, v.vehicle_make, v.vehicle_model].filter(Boolean).join(' ') || 'Unknown';
     const details = [v.vehicle_trim, v.vehicle_vin ? `VIN: ${v.vehicle_vin}` : null, v.vehicle_stock_number ? `Stock: ${v.vehicle_stock_number}` : null, v.listed_price].filter(Boolean).join(' · ');
     const m = v.dealer_match;
+    // Photo opens the dealer listing in a new tab if a detail_url exists.
     const photo = m?.photo_url
-      ? `<img src="${esc(m.photo_url)}" alt="" style="width:80px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`
+      ? (m.detail_url
+          ? `<a href="${esc(m.detail_url)}" target="_blank" rel="noopener" title="Open listing on GA Motors" style="flex-shrink:0;line-height:0"><img src="${esc(m.photo_url)}" alt="" style="width:80px;height:60px;object-fit:cover;border-radius:8px;cursor:pointer" onerror="this.style.display='none'"></a>`
+          : `<img src="${esc(m.photo_url)}" alt="" style="width:80px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`)
       : '';
     const dealerInfo = m
       ? `<div style="font-size:12px;color:var(--green);margin-top:4px">In Stock${m.price ? ' · $' + m.price.toLocaleString() : ''}${m.mileage ? ' · ' + m.mileage.toLocaleString() + ' mi' : ''}</div>`

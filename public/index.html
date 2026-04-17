@@ -612,7 +612,10 @@
 
   <!-- LEAD DETAIL PAGE -->
   <div class="page" id="page-lead-detail">
-    <button class="back-btn" onclick="showPage('leads')">← Back to Leads</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="back-btn" style="margin-bottom:0" onclick="showPage('leads')">← Back to Leads</button>
+      <div id="ld-nav" style="display:flex;gap:8px"></div>
+    </div>
     <div class="page-header" style="margin-bottom:16px">
       <div>
         <div class="detail-title" id="ld-name"></div>
